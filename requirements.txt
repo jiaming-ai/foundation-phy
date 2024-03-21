@@ -5,7 +5,7 @@ dataclasses
 etils[epath_no_tf]
 cloudml-hypertune
 google-cloud-storage
-imageio
+imageio[ffmpeg]
 munch
 numpy>=1.17
 pandas

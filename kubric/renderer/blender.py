@@ -181,15 +181,32 @@ class Blender(core.View):
   def use_gpu(self) -> bool:
     return self.blender_scene.cycles.device == "GPU"
 
+  # fixed use GPU according to https://github.com/google-research/kubric/issues/224
   @use_gpu.setter
   def use_gpu(self, value: bool):
     self.blender_scene.cycles.device = "GPU" if value else "CPU"
     if value:
       # call get_devices() to let Blender detect GPU devices
-      bpy.context.preferences.addons["cycles"].preferences.get_devices()
-      devices_used = [d.name for d in bpy.context.preferences.addons["cycles"].preferences.devices
-                      if d.use]
-      logger.info("Using the following GPU Device(s): %s", devices_used)
+      preferences = bpy.context.preferences
+      cycles_preferences = preferences.addons['cycles'].preferences
+      cuda_devices, opencl_devices = cycles_preferences.get_devices()
+      # cycles_preferences.compute_device_type = "CUDA"
+
+      print(f'Current cycles render device: {cycles_preferences.compute_device_type}')
+
+      for device in cuda_devices:
+        logger.info("Activating: %s", device.name)
+        device.use = True
+
+  # @use_gpu.setter
+  # def use_gpu(self, value: bool):
+  #   self.blender_scene.cycles.device = "GPU" if value else "CPU"
+  #   if value:
+  #     # call get_devices() to let Blender detect GPU devices
+  #     bpy.context.preferences.addons["cycles"].preferences.get_devices()
+  #     devices_used = [d.name for d in bpy.context.preferences.addons["cycles"].preferences.devices
+  #                     if d.use]
+  #     logger.info("Using the following GPU Device(s): %s", devices_used)
 
   def set_exr_output_path(self, path_prefix: Optional[PathLike]):
     """Set the target path prefix for EXR output.

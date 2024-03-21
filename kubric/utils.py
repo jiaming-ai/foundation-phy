@@ -24,7 +24,7 @@ import pprint
 import shutil
 import sys
 import tempfile
-
+from typing import List, Tuple
 from etils import epath
 import numpy as np
 
@@ -90,7 +90,7 @@ class ArgumentParser(argparse_flags.ArgumentParser):
 # --------------------------------------------------------------------------------------------------
 
 def setup(flags):
-  setup_logging(flags.logging_level)
+  # setup_logging(flags.logging_level)
   log_my_flags(flags)
 
   seed = flags.seed if flags.seed else np.random.randint(0, 2147483647)

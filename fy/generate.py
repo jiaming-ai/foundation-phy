@@ -51,7 +51,7 @@ parser.add_argument("--backgrounds_split", choices=["train", "test"],
                     default="train")
 
 parser.add_argument("--camera", choices=["fixed_random", "linear_movement", "linear_movement_linear_lookat"],
-                    default="fixed_random")
+                    default="linear_movement")
 parser.add_argument("--max_camera_movement", type=float, default=4.0)
 parser.add_argument("--max_motion_blur", type=float, default=0.0)
 
@@ -64,20 +64,18 @@ parser.add_argument("--hdri_assets", type=str,
 parser.add_argument("--gso_assets", type=str,
                     default="gs://kubric-public/assets/GSO/GSO.json")
 parser.add_argument("--save_state", dest="save_state", action="store_true")
-parser.set_defaults(save_state=False, frame_end=24, frame_rate=12,
-                    resolution=256)
+
+# 3s of animation at 12 fps
+parser.set_defaults(save_state=False, frame_end=2, frame_rate=12,
+                    resolution="512x512")
 FLAGS = parser.parse_args()
 
 # --- Common setups & resources
 scene, rng, output_dir, scratch_dir = kb.setup(FLAGS)
 
-motion_blur = rng.uniform(0, FLAGS.max_motion_blur)
-if motion_blur > 0.0:
-  logging.info(f"Using motion blur strength {motion_blur}")
 
 simulator = PyBullet(scene, scratch_dir)
-renderer = Blender(scene, scratch_dir, use_denoising=True, samples_per_pixel=64,
-                   motion_blur=motion_blur)
+renderer = Blender(scene, scratch_dir)
 kubasic = kb.AssetSource.from_manifest(FLAGS.kubasic_assets)
 gso = kb.AssetSource.from_manifest(FLAGS.gso_assets)
 hdri_source = kb.AssetSource.from_manifest(FLAGS.hdri_assets)
@@ -213,8 +211,9 @@ else:
 
 
 # add STATIC objects
-num_static_objects = rng.randint(FLAGS.min_num_static_objects,
-                                 FLAGS.max_num_static_objects+1)
+# num_static_objects = rng.randint(FLAGS.min_num_static_objects,
+#                                  FLAGS.max_num_static_objects+1)
+num_static_objects = 1                  
 logging.info("Randomly placing %d static objects:", num_static_objects)
 for i in range(num_static_objects):
   obj = gso.create(asset_id=rng.choice(active_split))
@@ -249,8 +248,9 @@ dome.restitution = FLAGS.floor_restitution
 
 
 # Add DYNAMIC objects
-num_dynamic_objects = rng.randint(FLAGS.min_num_dynamic_objects,
-                                  FLAGS.max_num_dynamic_objects+1)
+# num_dynamic_objects = rng.randint(FLAGS.min_num_dynamic_objects,
+#                                   FLAGS.max_num_dynamic_objects+1)
+num_dynamic_objects = 1
 logging.info("Randomly placing %d dynamic objects:", num_dynamic_objects)
 for i in range(num_dynamic_objects):
   obj = gso.create(asset_id=rng.choice(active_split))
