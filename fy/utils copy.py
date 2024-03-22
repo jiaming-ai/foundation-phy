@@ -4,6 +4,7 @@ import imageio
 import bpy
 import numpy as np
 
+
 def get_args():
 
   # --- CLI arguments
@@ -32,17 +33,16 @@ def get_args():
   parser.set_defaults(save_state=False, frame_end=36, frame_rate=12,
                       resolution="512x512")
   
-  parser.add_argument("--debug", type=bool, default=False)
+  parser.add_argument("--debug", type=bool, default=True)
   
   parser.add_argument("--generate_violation", type=bool, default=True) # generate violation results
-  parser.add_argument("--save_states", type=bool, default=False) # save states
+  parser.add_argument("--save_states", type=bool, default=True) # save states
   parser.add_argument("--render_both_results", type=bool, default=True) # render both violation and non-violation results
   
   FLAGS = parser.parse_args()
 
   if FLAGS.debug:
     FLAGS.logging_level = "DEBUG"
-    FLAGS.save_states = True
     print("Debug mode is on")
     
   return FLAGS
@@ -147,4 +147,3 @@ def set_camera_keyframes(vals=[-20, 20], frames=[0, 72], interpolation='CUBIC'):
                 for keyframe in fcurve.keyframe_points:
                     keyframe.interpolation = interpolation
                     keyframe.easing='EASE_IN_OUT'
-                    
