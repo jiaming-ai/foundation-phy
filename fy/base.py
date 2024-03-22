@@ -52,6 +52,8 @@ class BaseTestScene(abc.ABC):
         self.gso = kb.AssetSource.from_manifest(FLAGS.gso_assets)
         self.hdri_source = kb.AssetSource.from_manifest(FLAGS.hdri_assets)
 
+        bpy.context.user_preferences
+
         # load background ids
         if os.path.exists("fy/configs/scene_asset_ids.txt"):
             with open("fy/configs/scene_asset_ids.txt", "r") as f:
@@ -220,9 +222,9 @@ class BaseTestScene(abc.ABC):
         scene.camera = kb.PerspectiveCamera(name="camera", position=(0,0,0))
         
         # add floor  to the scene
-        # self.scene += kb.Cube(name="floor", scale=(10, 10, 0.001), position=(0, 0, -0.001),
-        #                 static=True)
-        # bpy.data.objects['floor'].hide_render = True
+        self.scene += kb.Cube(name="floor", scale=(10, 10, 0.001), position=(0, 0, -0.001),
+                        static=True)
+        bpy.data.objects['floor'].hide_render = True
 
         # add table to the scene
         table = self.shapenet.create(asset_id=rng.choice(self.shapenet_table_ids), static=True)
@@ -385,24 +387,31 @@ class BaseTestScene(abc.ABC):
         logging.info("Running 100 frames of simulation to let static objects settle ...")
         _, _ = self.simulator.run(frame_start=-100, frame_end=0)
 
-    def add_background_dynamic_objects(self, n_obj:int = 1):
+    def add_background_dynamic_objects(self, 
+                                       n_obj:int = 1, 
+                                       scale: float = 2,
+                                       x_range: tuple = (-3, 3), 
+                                       y_range: tuple = (0.5, 1.5), 
+                                       z_range: tuple = (3, 5)):
         """Add some other dynamic objects as background objects
         
         """
         for _ in range(n_obj):
             # make random free fall
-            rand_pos = self.rng.uniform(-0.5, 0.5, 3)
-            rand_pos[0] *= 6
-            rand_pos[1] += 1
-            rand_pos[2] *= 2
-            rand_pos[2] += 4
+            rand_pos = self.rng.uniform(-1, 1, 3)
+            
+            for i, u in enumerate([x_range, y_range, z_range]):
+                mean = (u[1] + u[0]) / 2
+                scale = (u[1] - u[0]) / 2
+                rand_pos[i] = rand_pos[i] * scale + mean 
+
             rand_vel = self.rng.uniform(-3, 3, 3)
             sign = -1 if rand_pos[0] < 0 else 1
             rand_vel[0] = -sign * abs(rand_vel[0]) # make the object move towards the center
             self.add_object(position=rand_pos,
                             velocity=rand_vel,
                             is_dynamic=True,
-                            scale=2)
+                            scale=scale)
 
     @abc.abstractmethod
     def add_test_objects(self):

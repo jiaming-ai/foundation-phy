@@ -20,6 +20,7 @@ def main() -> None:
         output_dir = f"output_egocentric/continuity_{i}/"
         FLAGS.job_dir = output_dir
         generate_continuity_test(FLAGS, params, output_dir)
+        # break
         # try:
         #     generate_continuity_test(FLAGS, output_dir)
         # except Exception as e:

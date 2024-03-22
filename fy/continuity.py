@@ -129,15 +129,54 @@ class ContinuityTestScene(BaseTestScene):
         Returns:
             _type_: _description_
         """
+        self.add_background_dynamic_objects(5, 
+                                            scale=1, 
+                                            x_range=(-1.25, 1.25), 
+                                            y_range=(-0.7, 0.7), 
+                                            z_range=(3, 3.5))
+
+        # -- add the big object
         big_obj_id = self.rng.choice(self.big_object_asset_id_list)
         big_obj = self.add_object(asset_id=big_obj_id,
-                                position=(0, 0, self.table_h),
-                                is_dynamic=False,
-                                scale=2)
+                                position=(0, 0, 0),
+                                quaternion=(1,0,0,0),
+                                is_dynamic=True,
+                                scale=1.25)
+
+        # # -- rotate the object if its principal axis is not aligned with the x axis
+        # x_size = big_obj.aabbox[1][0] - big_obj.aabbox[0][0]
+        # y_size = big_obj.aabbox[1][1] - big_obj.aabbox[0][1]
+        # z_size = big_obj.aabbox[1][1] - big_obj.aabbox[0][1]
+        # if y_size < z_size or x_size < z_size:
+        #     big_obj.quaternion = kb.Quaternion(axis=[1, 0, 0], degrees=-90) * big_obj.quaternion
+        # if (x_size) < (y_size):
+        #     big_obj.quaternion = kb.Quaternion(axis=[0, 0, 1], degrees=90) * big_obj.quaternion
+        big_obj.position = (0, 0, self.table_h - big_obj.aabbox[0][2])
+
+        # -- add small object
+        small_obj_id = self.rng.choice(self.small_object_asset_id_list)
+        small_obj = self.add_object(asset_id=small_obj_id,
+                                position=(0, 0, 0),
+                                quaternion=(1,0,0,0),
+                                is_dynamic=True,
+                                scale=1)
+        
+        x = np.random.uniform(-0.1, 0.1)
+        y = np.random.uniform(big_obj.aabbox[1][1]-small_obj.aabbox[0][1]+0.15, 
+                              big_obj.aabbox[1][1]+0.27)
+        
+        small_obj.position = (x, y, self.table_h - small_obj.aabbox[0][2])
+
+        self.test_obj = [big_obj, small_obj]
+
+
+        # TODO determine when to make the small object invisible
+        # 1. for frame in range(10, 25): bpy.context.scene.frame_set(frame)
+        # 2. sample 1000 vertex from the small object and apply ray tracing
+        # 3. if we can find a place where < 0.1 -> set the object keyframe
+        # 4. otherwise, ...
         
         
-        self.test_obj = [big_obj]
-        
-        return big_obj
+        return big_obj, small_obj
 
         

@@ -457,7 +457,7 @@ class Blender(core.View):
                 if obj.type != "MESH"
             ]
             for obj in non_mesh_objects:
-              bpy.data.objects.remove(obj, do_unlink=True)
+              bpy.data.objects.remove(obj, do_unlink=True) 
 
             assert len(bpy.context.selected_objects) == 1
             blender_obj = bpy.context.selected_objects[0]

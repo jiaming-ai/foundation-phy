@@ -58,6 +58,14 @@ def write_video(source_dir, output_file):
   # imageio.mimsave('output/movie.gif', images, fps=12)
   imageio.mimsave(output_file, images, fps=12)
 
+def set_gpu_render():
+   for scene in bpy.data.scenes:
+    bpy.context.scene.render.engine = 'CYCLES' 
+    bpy.data.scenes["Scene"].cycles.device='GPU' 
+    bpy.context.scene.cycles.device = 'GPU'
+
+bpy.context.preferences.addons['cycles'].preferences.compute_device_type = "CUDA"
+bpy.context.preferences.addons['cycles'].preferences.devices[1].use = True
 
 def set_camera_path_constraint_circular(
                               center=(0, 0, 1.7),
