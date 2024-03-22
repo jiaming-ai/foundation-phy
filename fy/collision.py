@@ -19,7 +19,7 @@ class CollisionTestScene(BaseTestScene):
         super().__init__(FLAGS)
         
         # collision parameters
-        self.collision_time = 1.0 # second before collision
+        self.violation_time = 1.0 # second before collision
         self.collision_xy_distance = 2.2 # distance between obj_1 and obj_2 in xy plane
         self.collision_z_distance = 0.1 # distance between obj_1 and obj_2 in z direction
         self.collision_height = 1.5
@@ -38,7 +38,7 @@ class CollisionTestScene(BaseTestScene):
         # following the laws of physics
         _, collisions = self._run_simulate()
 
-        self.save_test_obj_state("non_violation")
+        self.save_non_violation_scene()
 
         if self.flags.save_states:
             fname = "non_violation.blend"
@@ -48,7 +48,7 @@ class CollisionTestScene(BaseTestScene):
             self.renderer.save_state(full_path)
             
         if self.flags.generate_violation:
-            logging.info("Violating the laws of physics")
+            logging.info("Generating scene with violation of laws of physics")
 
             # find the first collision frame
             first_collision_frame = 0
@@ -56,7 +56,7 @@ class CollisionTestScene(BaseTestScene):
                 instances = collisions[i]['instances']
                 if len(instances) == 2:
                     if instances[0] in self.test_obj and instances[1] in self.test_obj:
-                        first_collision_frame = int(collisions[i]['frame'])
+                        first_collision_frame = collisions[i]['frame']
                         break
             if first_collision_frame == 0:
                 raise RuntimeError("No collision detected")
@@ -65,9 +65,10 @@ class CollisionTestScene(BaseTestScene):
             
             # make the objects fall straight down after the collision
             for obj in self.test_obj:
-                xyz = obj.keyframes["position"][first_collision_frame].copy()
+                # linear interpolation
+                xyz = obj.get_value_at("position", first_collision_frame, interpolation="linear").copy()
                 
-                for frame in range(first_collision_frame, self.scene.frame_end+1):
+                for frame in range(int(first_collision_frame), self.scene.frame_end+1):
                     # set xy velocity to 0
                     vel = obj.keyframes["velocity"][frame].copy()
                     vel[0] = 0
@@ -82,7 +83,7 @@ class CollisionTestScene(BaseTestScene):
                     obj.position = pos
                     obj.keyframe_insert("position", frame)
                     
-            self.save_test_obj_state("violation")
+            self.save_violation_scene()
             
             if self.flags.save_states:
                 fname = "violation.blend"
@@ -98,7 +99,7 @@ class CollisionTestScene(BaseTestScene):
             _type_: _description_
         """
         g = -self.gravity[2]
-        t = self.collision_time # second
+        t = self.violation_time # second
         z_dis_before_collision = g * t ** 2 / 2
         obj_dist = self.collision_xy_distance # distance between obj_1 and obj_2 in xy plane
         pos_2_delta_z = self.collision_z_distance # distance between obj_1 and obj_2 in z direction
@@ -125,13 +126,13 @@ class CollisionTestScene(BaseTestScene):
         
         # random select two objects, consider the exclusion list
         obj_1_id = self.rng.choice(self.small_object_asset_id_list)
-        obj_1 = self.add_dynamic_object(asset_id=obj_1_id,
+        obj_1 = self.add_object(asset_id=obj_1_id,
                                            position=pos_1, 
                                            velocity=vel_1_xyz,
                                            scale=1.8)
         
         obj_2_id = self.rng.choice(self.big_object_asset_id_list)
-        obj_2 = self.add_dynamic_object(asset_id=obj_2_id,
+        obj_2 = self.add_object(asset_id=obj_2_id,
                                            position=pos_2, 
                                            velocity=vel_2_xyz,
                                            scale=2.8)
