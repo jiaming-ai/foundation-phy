@@ -91,7 +91,7 @@ class BaseTestScene(abc.ABC):
         if os.path.exists("fy/configs/tables.txt"):
             with open("fy/configs/tables.txt", "r") as f:
                 self.shapenet_table_ids = f.read().split("\n")
-            
+          
         self.object_asset_id_list = self.gso.all_asset_ids
         # self._setup_scene()
         self._setup_indoor_scene()

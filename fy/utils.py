@@ -2,7 +2,7 @@
 import kubric as kb
 import imageio
 import bpy
-import numpy as np
+import numpy as np 
 
 def get_args():
 

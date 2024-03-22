@@ -1,6 +1,3 @@
-
-
-
 from fy.utils import get_args
 import logging
 import kubric as kb

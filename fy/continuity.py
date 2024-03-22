@@ -159,7 +159,7 @@ class ContinuityTestScene(BaseTestScene):
                                 position=(0, 0, 0),
                                 quaternion=(1,0,0,0),
                                 is_dynamic=True,
-                                scale=1)
+                                scale=1) 
         
         x = np.random.uniform(-0.1, 0.1)
         y = np.random.uniform(big_obj.aabbox[1][1]-small_obj.aabbox[0][1]+0.15, 
