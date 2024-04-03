@@ -37,7 +37,7 @@ def get_args():
   parser.set_defaults(save_state=False, frame_end=36, frame_rate=12,
                       resolution="512x512")
   
-  parser.add_argument("--debug", type=txt2bool, default=True)
+  parser.add_argument("--debug", type=txt2bool, default=False)
   
   parser.add_argument("--generate_violation", type=txt2bool, default=True) # generate violation results
   parser.add_argument("--save_states", type=txt2bool, default=False) # save states
@@ -63,28 +63,28 @@ def write_video(source_dir, output_file):
   # imageio.mimsave('output/movie.gif', images, fps=12)
   imageio.mimsave(output_file, images, fps=12)
 
-def set_gpu_render():
-  # for scene in bpy.data.scenes:
-  #   bpy.context.scene.render.engine = 'CYCLES' 
-  #   bpy.data.scenes["Scene"].cycles.device='GPU' 
-  #   bpy.context.scene.cycles.device = 'GPU'
+# def set_gpu_render():
+#   # for scene in bpy.data.scenes:
+#   #   bpy.context.scene.render.engine = 'CYCLES' 
+#   #   bpy.data.scenes["Scene"].cycles.device='GPU' 
+#   #   bpy.context.scene.cycles.device = 'GPU'
 
-  # bpy.context.preferences.addons['cycles'].preferences.compute_device_type = "CUDA"
-  # bpy.context.preferences.addons['cycles'].preferences.devices[1].use = True
+#   # bpy.context.preferences.addons['cycles'].preferences.compute_device_type = "CUDA"
+#   # bpy.context.preferences.addons['cycles'].preferences.devices[1].use = True
 
-  # https://blender.stackexchange.com/questions/104651/selecting-gpu-with-python-script
-  bpy.data.scenes[0].render.engine = "CYCLES"
-  bpy.context.preferences.addons["cycles"].preferences.compute_device_type = "CUDA" # or "OPENCL"
+#   # https://blender.stackexchange.com/questions/104651/selecting-gpu-with-python-script
+#   bpy.data.scenes[0].render.engine = "CYCLES"
+#   bpy.context.preferences.addons["cycles"].preferences.compute_device_type = "CUDA" # or "OPENCL"
 
-  # Set the device and feature set
-  bpy.context.scene.cycles.device = "GPU"
+#   # Set the device and feature set
+#   bpy.context.scene.cycles.device = "GPU"
 
-  # get_devices() to let Blender detects GPU device
-  # print(bpy.context.preferences.addons["cycles"].preferences.get_devices())
-  # print(bpy.context.preferences.addons["cycles"].preferences.compute_device_type)
-  for d in bpy.context.preferences.addons["cycles"].preferences.devices:
-      d["use"] = 1 # Using all devices, include GPU and CPU
-      print(d["name"], d["use"])
+#   # get_devices() to let Blender detects GPU device
+#   # print(bpy.context.preferences.addons["cycles"].preferences.get_devices())
+#   # print(bpy.context.preferences.addons["cycles"].preferences.compute_device_type)
+#   for d in bpy.context.preferences.addons["cycles"].preferences.devices:
+#       d["use"] = 1 # Using all devices, include GPU and CPU
+#       print(d["name"], d["use"])
 
 def set_camera_path_constraint_circular(
                               center=(0, 0, 1.7),

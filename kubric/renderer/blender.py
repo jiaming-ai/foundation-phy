@@ -191,7 +191,7 @@ class Blender(core.View):
 
       # uncomment the following line to use CUDA
       # NOTE: currently this doesn't work due to some unknown reasons
-      # cycles_preferences.compute_device_type = "CUDA"
+      cycles_preferences.compute_device_type = "CUDA"
 
       print(f'Current cycles render device: {cycles_preferences.compute_device_type}')
 

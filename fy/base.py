@@ -111,6 +111,7 @@ class BaseTestScene(abc.ABC):
         self.object_asset_id_list = self.gso.all_asset_ids
         
         self.sample_history = {}
+
         # self._setup_scene()
     
     # def create_lights(self,rng):
@@ -137,7 +138,9 @@ class BaseTestScene(abc.ABC):
     #     return lights
     def _setup_everything(self, shift=[0, 5, 0]):
 
-        self._setup_indoor_scene()
+        # TODO, add flag to choose which scene to use
+        # self._setup_indoor_scene()
+        self._setup_hdri_scene()
 
         if self.flags.debug:
             logging.info("Ignore background objects.")
@@ -213,61 +216,61 @@ class BaseTestScene(abc.ABC):
         self.simulator = simulator
         self.renderer = renderer
         
-    # def _setup_scene(self):
-    #     """Setup the scene for rendering
+    def _setup_hdri_scene(self):
+        """Setup the scene for rendering
 
-    #     """
-    #     # --- Common setups & resources
-    #     scene, rng, output_dir, scratch_dir = kb.setup(self.flags)
+        """
+        # --- Common setups & resources
+        scene, rng, output_dir, scratch_dir = kb.setup(self.flags)
 
-    #     simulator = PyBullet(scene, scratch_dir)
-    #     renderer = Blender(scene, scratch_dir)
+        simulator = PyBullet(scene, scratch_dir)
+        renderer = Blender(scene, scratch_dir)
 
-    #     # --- Populate the scene
-    #     # background HDRI
-    #     all_backgrounds = self.scene_asset_id_list
-    #     if self.background_hdri_id is not None:
-    #         hdri_id = self.background_hdri_id
-    #         logging.info(f"Using background {hdri_id} from {len(all_backgrounds)} background HDRI images")
-    #     else:
-    #         hdri_id = rng.choice(all_backgrounds)
-    #         self.background_hdri_id = hdri_id
-    #         logging.info(f"Choosing background {hdri_id} from {len(all_backgrounds)} background HDRI images")
-    #     background_hdri = self.hdri_source.create(asset_id=hdri_id)
-    #     assert isinstance(background_hdri, kb.Texture)
-    #     scene.metadata["background"] = hdri_id
-    #     renderer._set_ambient_light_hdri(background_hdri.filename)
+        # --- Populate the scene
+        # background HDRI
+        all_backgrounds = self.scene_asset_id_list
+        if self.background_hdri_id is not None:
+            hdri_id = self.background_hdri_id
+            logging.info(f"Using background {hdri_id} from {len(all_backgrounds)} background HDRI images")
+        else:
+            hdri_id = rng.choice(all_backgrounds)
+            self.background_hdri_id = hdri_id
+            logging.info(f"Choosing background {hdri_id} from {len(all_backgrounds)} background HDRI images")
+        background_hdri = self.hdri_source.create(asset_id=hdri_id)
+        assert isinstance(background_hdri, kb.Texture)
+        scene.metadata["background"] = hdri_id
+        renderer._set_ambient_light_hdri(background_hdri.filename)
 
-    #     # Dome
-    #     dome = self.kubasic.create(asset_id="dome", name="dome",
-    #                             friction=1.0,
-    #                             restitution=0.0,
-    #                             static=True, background=True)
-    #     assert isinstance(dome, kb.FileBasedObject)
+        # Dome
+        dome = self.kubasic.create(asset_id="dome", name="dome",
+                                friction=1.0,
+                                restitution=0.0,
+                                static=True, background=True)
+        assert isinstance(dome, kb.FileBasedObject)
 
-    #     dome.friction = self.flags.floor_friction
-    #     dome.restitution = self.flags.floor_restitution
+        dome.friction = self.flags.floor_friction
+        dome.restitution = self.flags.floor_restitution
 
-    #     scene += dome
-    #     dome_blender = dome.linked_objects[renderer]
-    #     texture_node = dome_blender.data.materials[0].node_tree.nodes["Image Texture"]
-    #     texture_node.image = bpy.data.images.load(background_hdri.filename)
+        scene += dome
+        dome_blender = dome.linked_objects[renderer]
+        texture_node = dome_blender.data.materials[0].node_tree.nodes["Image Texture"]
+        texture_node.image = bpy.data.images.load(background_hdri.filename)
 
         
-    #     logging.info("Setting up the Camera...")
-    #     scene.camera = kb.PerspectiveCamera()
+        logging.info("Setting up the Camera...")
+        scene.camera = kb.PerspectiveCamera()
 
-    #     # each scene has a different camera setup, depending on the scene
-    #     scene.camera.position = (0, -3, 1.7) # height 1.7, away 2m
-    #     scene.camera.look_at((0, 0, 1))
+        # each scene has a different camera setup, depending on the scene
+        scene.camera.position = (0, -3, 1.7) # height 1.7, away 2m
+        scene.camera.look_at((0, 0, 1))
 
-    #     self.scene = scene
-    #     self.simulator = simulator
-    #     self.renderer = renderer
-    #     self.rng = rng
-    #     self.output_dir = output_dir
-    #     self.scratch_dir = scratch_dir
-    #     self.background_hdri = background_hdri
+        self.scene = scene
+        self.simulator = simulator
+        self.renderer = renderer
+        self.rng = rng
+        self.output_dir = output_dir
+        self.scratch_dir = scratch_dir
+        self.background_hdri = background_hdri
 
     def _setup_indoor_scene(self, 
                             ):
@@ -329,7 +332,6 @@ class BaseTestScene(abc.ABC):
         aim_at_x, aim_at_y = aim_at_r * np.cos(theta), aim_at_r * np.sin(theta)
         
         # add color with random color, strenth, 
-        
 
     def shift_scene(self, shift: np.ndarray):
         """Shift the scene by a given vector.
@@ -531,7 +533,7 @@ class BaseTestScene(abc.ABC):
     def add_test_objects(self):
         pass
 
-    @abc.abstractmethod
+    # @abc.abstractmethod
     def add_block_objects(self):
         """_summary_
         TODO: MAKE SURE the object is properly oriented so that it blocks the test object
