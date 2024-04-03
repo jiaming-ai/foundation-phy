@@ -4,7 +4,7 @@ import kubric as kb
 import imageio
 from fy.utils import write_video
 from fy.continuity import ContinuityTestScene, path_template
-
+from utils import set_gpu_render
 from etils import epath
 
 def main() -> None:
@@ -13,10 +13,13 @@ def main() -> None:
 
     num_test = 1
     for i, params in enumerate(path_template):
-        logging.info(f"========== Rendering collision test {i} ===========")
-        output_dir = f"output_egocentric/continuity_{i}/"
-        FLAGS.job_dir = output_dir
-        generate_continuity_test(FLAGS, params, output_dir)
+        if i < 6:
+            continue
+        for j in range(5):
+            print(f"========== Rendering continuity test {i}-{j} ===========")
+            output_dir = f"output_egocentric/continuity_path{i}/{j}"
+            FLAGS.job_dir = output_dir
+            generate_continuity_test(FLAGS, params, output_dir)
         # break
         # try:
         #     generate_continuity_test(FLAGS, output_dir)
@@ -31,14 +34,14 @@ def generate_continuity_test(FLAGS, path, output_dir) -> None:
     with ContinuityTestScene(FLAGS, path) as cont_scene:
         # first prepare the scene
         # both violation and non-violation states are saved
-        logging.info("Preparing the scene")
+        set_gpu_render()
         # cont_scene.load_blender_scene("meshes/scenes/game-room-scaled.blend")
         # collision_scene.write_metadata()
 
         # # render the violation state
-        cont_scene.change_output_dir( output_dir + "noviolation" )
+        # cont_scene.change_output_dir( output_dir + "noviolation" )
         cont_scene.prepare_scene(shift=[0,0,0])
-        cont_scene.renderer.save_state( output_dir + "empty.blend")
+        # cont_scene.renderer.save_state( output_dir + "empty.blend")
 
         # collision_scene.render(save_to_file=True)
         # write_video(output_dir + "violation/", output_dir + "violation.mp4")

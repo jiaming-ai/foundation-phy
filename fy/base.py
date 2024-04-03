@@ -7,11 +7,10 @@ from kubric.renderer import Blender
 import numpy as np
 import os
 import abc
-
+from etils import epath
 from kubric import core
 from kubric.core import color
 
-from etils import epath
 
 # --- Some configuration values
 # the region in which to place objects [(min), (max)]
@@ -20,6 +19,17 @@ DYNAMIC_SPAWN_REGION = [(-5, -5, 1), (5, 5, 5)]
 VELOCITY_RANGE = [(-4., -4., 0.), (4., 4., 0.)]
 
 SCENE_EXCLUDE = ["wobbly_bridge"]
+
+print("loading shapenet")
+source_path = os.getenv("SHAPENET_GCP_BUCKET", "gs://kubric-unlisted/assets/ShapeNetCore.v2.json")
+shapenet_assets = kb.AssetSource.from_manifest(source_path)
+print("loading gso")
+gso_assets = kb.AssetSource.from_manifest("gs://kubric-public/assets/GSO/GSO.json")
+print("loading kubasic")
+kubasic_assets = kb.AssetSource.from_manifest("gs://kubric-public/assets/KuBasic/KuBasic.json")
+print("loading hdri")
+hdri_assets = kb.AssetSource.from_manifest("gs://kubric-public/assets/HDRI_haven/HDRI_haven.json")
+print("finished loading all the sources")
 
 class BaseTestScene(abc.ABC):
     """Base class for all test scenes.
@@ -48,11 +58,9 @@ class BaseTestScene(abc.ABC):
         self.test_obj = None
 
         # load asset sources
-        self.kubasic = kb.AssetSource.from_manifest(FLAGS.kubasic_assets)
-        self.gso = kb.AssetSource.from_manifest(FLAGS.gso_assets)
-        self.hdri_source = kb.AssetSource.from_manifest(FLAGS.hdri_assets)
-
-        bpy.context.user_preferences
+        self.kubasic = kubasic_assets # kb.AssetSource.from_manifest(FLAGS.kubasic_assets)
+        self.gso = gso_assets # kb.AssetSource.from_manifest(FLAGS.gso_assets)
+        self.hdri_source = hdri_assets # kb.AssetSource.from_manifest(FLAGS.hdri_assets)
 
         # load background ids
         if os.path.exists("fy/configs/scene_asset_ids.txt"):
@@ -72,9 +80,19 @@ class BaseTestScene(abc.ABC):
             with open("fy/configs/gso_big_obj_ids.txt", "r") as f:
                 self.big_object_asset_id_list = f.read().split("\n")
             logging.info(f"Loaded {len(self.big_object_asset_id_list)} allowed big object asset ids from file.")
+
+        if os.path.exists("fy/configs/gso_super_big_obj_ids.txt"):
+            with open("fy/configs/gso_super_big_obj_ids.txt", "r") as f:
+                self.super_big_object_asset_id_list = f.read().split("\n")
+            logging.info(f"Loaded {len(self.super_big_object_asset_id_list)} allowed super big object asset ids from file.")
+
+        if os.path.exists("fy/configs/gso_super_small_obj_ids.txt"):
+            with open("fy/configs/gso_super_small_obj_ids.txt", "r") as f:
+                self.super_small_object_asset_id_list = f.read().split("\n")
+            logging.info(f"Loaded {len(self.super_small_object_asset_id_list)} allowed super small object asset ids from file.")
                 
-        if os.path.exists("fy/configs/gso_all_obj_ids.txt"):
-            with open("fy/configs/gso_all_obj_ids.txt", "r") as f:
+        if os.path.exists("fy/configs/gso_all_obj_asset_ids.txt"):
+            with open("fy/configs/gso_all_obj_asset_ids.txt", "r") as f:
                 all_gso_ids = f.read().split("\n")
                 
             # assert small and big list are in all list
@@ -217,16 +235,28 @@ class BaseTestScene(abc.ABC):
         """
         # --- Common setups & resources
         scene, rng, output_dir, scratch_dir = kb.setup(self.flags)
+
+        logging.info("Loading blender scene")
         blender_scene = rng.choice(self.scenes)
         self.load_blender_scene(blender_scene)
         scene.camera = kb.PerspectiveCamera(name="camera", position=(0,0,0))
         
-        # add floor  to the scene
+
+        # add floor to the scene
+        logging.info("Adding floor to the scene")
+        self._delete_from_blender_scene("floor")
         self.scene += kb.Cube(name="floor", scale=(10, 10, 0.001), position=(0, 0, -0.001),
                         static=True)
-        bpy.data.objects['floor'].hide_render = True
+        
+        floor_obj = bpy.context.object
+        floor_obj.name = "floor"
+
+        bpy.data.objects["floor"].hide_render = True
+        bpy.data.objects["floor"].hide_viewport = True
+
 
         # add table to the scene
+        logging.info("Adding table to the scene")
         table = self.shapenet.create(asset_id=rng.choice(self.shapenet_table_ids), static=True)
         table.metadata["is_dynamic"] = False
         table.scale = [2] * 3
@@ -275,16 +305,23 @@ class BaseTestScene(abc.ABC):
                    quaternion=None,
                    velocity=(0,0,0), 
                    is_dynamic=True,
-                   scale=2):
+                   scale=2, 
+                   **kwargs):
         """Add objects to the scene.
 
+        
         """
+        # delete the old object with the same name to avoid clashing
+        if 'name' in kwargs:
+            self._delete_from_blender_scene(kwargs['name'])
+        # delete the object with the same input name
         if asset_id is not None:
-            obj = self.gso.create(asset_id=asset_id)
+            obj = self.gso.create(asset_id=asset_id, **kwargs)
         else:
-            obj = self.gso.create(asset_id=self.rng.choice(self.object_asset_id_list))
+            obj = self.gso.create(asset_id=self.rng.choice(self.object_asset_id_list), **kwargs)
 
         assert isinstance(obj, kb.FileBasedObject)
+
 
         obj.velocity = velocity
         obj.scale = scale
@@ -296,6 +333,17 @@ class BaseTestScene(abc.ABC):
             self.set_random_rotation(obj)
 
         self.scene += obj
+
+        # find the object by name in bpy.data.objects
+        if 'name' in kwargs:
+            name = kwargs['name']
+            name_len = len(name)
+
+            for obj_bpy in bpy.data.objects:
+                if obj_bpy.name[:name_len+1] == name+".": 
+                    obj_bpy.name = name
+                    break
+
         if position is not None:
             obj.position = position
         else:
@@ -318,6 +366,12 @@ class BaseTestScene(abc.ABC):
         logging.info("    Added %s at %s", obj.asset_id, obj.position)
 
         return obj
+
+    def _delete_from_blender_scene(self, name):
+        obj_del = bpy.context.scene.objects.get(name)
+        if obj_del:
+            bpy.data.objects.remove(obj_del, do_unlink = True)
+            logging.info(f"The existing object '{name}' will be replaced")
 
     def _run_simulate(self, save_state=False):
         """Run simulation and write to keyframes of objects
