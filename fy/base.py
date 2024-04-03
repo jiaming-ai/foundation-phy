@@ -21,8 +21,7 @@ VELOCITY_RANGE = [(-4., -4., 0.), (4., 4., 0.)]
 SCENE_EXCLUDE = ["wobbly_bridge"]
 
 print("loading shapenet")
-source_path = os.getenv("SHAPENET_GCP_BUCKET", "gs://kubric-unlisted/assets/ShapeNetCore.v2.json")
-shapenet_assets = kb.AssetSource.from_manifest(source_path)
+shapenet_assets = kb.AssetSource.from_manifest("gs://kubric-unlisted/assets/ShapeNetCore.v2.json")
 print("loading gso")
 gso_assets = kb.AssetSource.from_manifest("gs://kubric-public/assets/GSO/GSO.json")
 print("loading kubasic")
@@ -48,14 +47,13 @@ class BaseTestScene(abc.ABC):
 
         self.table_h = None
         self.shapenet_table_ids = None
-        source_path = os.getenv("SHAPENET_GCP_BUCKET", "gs://kubric-unlisted/assets/ShapeNetCore.v2.json")
-        self.shapenet = kb.AssetSource.from_manifest(source_path)
 
         self.render_data = ("rgba",)
         self.background_hdri_id = FLAGS.background_hdri_id
 
         self.test_obj_states = {"violation": None, "non_violation": None}
         self.test_obj = None
+        self.camera_look_at = [0,0,0]
 
         # load asset sources
         self.kubasic = kubasic_assets # kb.AssetSource.from_manifest(FLAGS.kubasic_assets)
@@ -111,8 +109,9 @@ class BaseTestScene(abc.ABC):
                 self.shapenet_table_ids = f.read().split("\n")
           
         self.object_asset_id_list = self.gso.all_asset_ids
+        
+        self.sample_history = {}
         # self._setup_scene()
-        self._setup_indoor_scene()
     
     # def create_lights(self,rng):
         
@@ -136,7 +135,9 @@ class BaseTestScene(abc.ABC):
     #         light.look_at((0, 5, 0))
         
     #     return lights
-    def prepare_scene(self, shift=[0, 5, 0]):
+    def _setup_everything(self, shift=[0, 5, 0]):
+
+        self._setup_indoor_scene()
 
         if self.flags.debug:
             logging.info("Ignore background objects.")
@@ -144,10 +145,53 @@ class BaseTestScene(abc.ABC):
             self.add_background_static_objects(3)
             self.add_background_dynamic_objects(1)
 
+        self.add_block_objects()
         self.add_test_objects()
+
+        self._random_rotate_scene()
+        self._set_camera_look_at()
         
-        self.shift_scene(shift)
+        # self.shift_scene(shift)
+
+        ## TODO: random sample camera trajectory (postion) and save camera trajectory index
+
         self.generate_keyframes()
+
+    def _set_camera_look_at(self, look_at=[0,0,0]):
+        """Shift camera to look at a specific point
+        TODO
+
+        Args:
+            look_at (list, optional): _description_. Defaults to [0,0,0].
+        """
+        pass
+
+    def _random_rotate_scene(self):
+        """Randomly rotate the scene and table (if has) 
+        TODO
+        """
+        pass
+
+    def prepare_scene(self):
+        
+        while True:
+            self._setup_everything()
+            if self._check_scene():
+                break
+
+            # check statistics of success rate
+            # self.sample_history[index] += 1
+            # TODO: if too much failure, remove camera trajectory index
+        
+    def _check_scene(self):
+        """Check if the scene is valid. Return Flase if the scene is invalid.
+        TODO: implement (Override) this function
+
+        Returns:
+            _type_: _description_
+        """
+        
+        return True 
     
     def __enter__(self):
         return self
@@ -169,64 +213,61 @@ class BaseTestScene(abc.ABC):
         self.simulator = simulator
         self.renderer = renderer
         
-    def _setup_scene(self):
-        """Setup the scene for rendering
+    # def _setup_scene(self):
+    #     """Setup the scene for rendering
 
-        """
-        # --- Common setups & resources
-        scene, rng, output_dir, scratch_dir = kb.setup(self.flags)
+    #     """
+    #     # --- Common setups & resources
+    #     scene, rng, output_dir, scratch_dir = kb.setup(self.flags)
 
-        simulator = PyBullet(scene, scratch_dir)
-        renderer = Blender(scene, scratch_dir)
+    #     simulator = PyBullet(scene, scratch_dir)
+    #     renderer = Blender(scene, scratch_dir)
 
-        # --- Populate the scene
-        # background HDRI
-        all_backgrounds = self.scene_asset_id_list
-        if self.background_hdri_id is not None:
-            hdri_id = self.background_hdri_id
-            logging.info(f"Using background {hdri_id} from {len(all_backgrounds)} background HDRI images")
-        else:
-            hdri_id = rng.choice(all_backgrounds)
-            self.background_hdri_id = hdri_id
-            logging.info(f"Choosing background {hdri_id} from {len(all_backgrounds)} background HDRI images")
-        background_hdri = self.hdri_source.create(asset_id=hdri_id)
-        assert isinstance(background_hdri, kb.Texture)
-        scene.metadata["background"] = hdri_id
-        renderer._set_ambient_light_hdri(background_hdri.filename)
+    #     # --- Populate the scene
+    #     # background HDRI
+    #     all_backgrounds = self.scene_asset_id_list
+    #     if self.background_hdri_id is not None:
+    #         hdri_id = self.background_hdri_id
+    #         logging.info(f"Using background {hdri_id} from {len(all_backgrounds)} background HDRI images")
+    #     else:
+    #         hdri_id = rng.choice(all_backgrounds)
+    #         self.background_hdri_id = hdri_id
+    #         logging.info(f"Choosing background {hdri_id} from {len(all_backgrounds)} background HDRI images")
+    #     background_hdri = self.hdri_source.create(asset_id=hdri_id)
+    #     assert isinstance(background_hdri, kb.Texture)
+    #     scene.metadata["background"] = hdri_id
+    #     renderer._set_ambient_light_hdri(background_hdri.filename)
 
-        # TODO: additional light?
-        # scene.add(self.create_lights(rng))
+    #     # Dome
+    #     dome = self.kubasic.create(asset_id="dome", name="dome",
+    #                             friction=1.0,
+    #                             restitution=0.0,
+    #                             static=True, background=True)
+    #     assert isinstance(dome, kb.FileBasedObject)
 
-        # Dome
-        dome = self.kubasic.create(asset_id="dome", name="dome",
-                                friction=1.0,
-                                restitution=0.0,
-                                static=True, background=True)
-        assert isinstance(dome, kb.FileBasedObject)
+    #     dome.friction = self.flags.floor_friction
+    #     dome.restitution = self.flags.floor_restitution
 
-        dome.friction = self.flags.floor_friction
-        dome.restitution = self.flags.floor_restitution
-
-        scene += dome
-        dome_blender = dome.linked_objects[renderer]
-        texture_node = dome_blender.data.materials[0].node_tree.nodes["Image Texture"]
-        texture_node.image = bpy.data.images.load(background_hdri.filename)
+    #     scene += dome
+    #     dome_blender = dome.linked_objects[renderer]
+    #     texture_node = dome_blender.data.materials[0].node_tree.nodes["Image Texture"]
+    #     texture_node.image = bpy.data.images.load(background_hdri.filename)
 
         
-        logging.info("Setting up the Camera...")
-        scene.camera = kb.PerspectiveCamera()
+    #     logging.info("Setting up the Camera...")
+    #     scene.camera = kb.PerspectiveCamera()
 
-        # each scene has a different camera setup, depending on the scene
-        scene.camera.position = (0, -3, 1.7) # height 1.7, away 2m
-        scene.camera.look_at((0, 0, 1))
+    #     # each scene has a different camera setup, depending on the scene
+    #     scene.camera.position = (0, -3, 1.7) # height 1.7, away 2m
+    #     scene.camera.look_at((0, 0, 1))
 
-        self.scene = scene
-        self.simulator = simulator
-        self.renderer = renderer
-        self.rng = rng
-        self.output_dir = output_dir
-        self.scratch_dir = scratch_dir
-        self.background_hdri = background_hdri
+    #     self.scene = scene
+    #     self.simulator = simulator
+    #     self.renderer = renderer
+    #     self.rng = rng
+    #     self.output_dir = output_dir
+    #     self.scratch_dir = scratch_dir
+    #     self.background_hdri = background_hdri
 
     def _setup_indoor_scene(self, 
                             ):
@@ -255,21 +296,40 @@ class BaseTestScene(abc.ABC):
         bpy.data.objects["floor"].hide_viewport = True
 
 
-        # add table to the scene
-        logging.info("Adding table to the scene")
-        table = self.shapenet.create(asset_id=rng.choice(self.shapenet_table_ids), static=True)
-        table.metadata["is_dynamic"] = False
-        table.scale = [2] * 3
-        table.quaternion = kb.Quaternion(axis=[1, 0, 0], degrees=90)
-        table.position = table.position - (0, 0, table.aabbox[0][2])  
-        table_h = table.aabbox[1][2] - table.aabbox[0][2]
+        # TODO: only add table when the task requires, add the list
+        if self.flags.task in ["gravity"]: 
+            logging.info("Adding table to the scene")
+            table = shapenet_assets.create(asset_id=rng.choice(self.shapenet_table_ids), static=True)
+            table.metadata["is_dynamic"] = False
+            table.scale = [2] * 3
+            table.quaternion = kb.Quaternion(axis=[1, 0, 0], degrees=90)
+            table.position = table.position - (0, 0, table.aabbox[0][2])  
+            table_h = table.aabbox[1][2] - table.aabbox[0][2]
 
-        self.scene.add(table)
+            self.scene.add(table)
+            self.table_h = table_h
        
         self.rng = rng
         self.output_dir = output_dir
         self.scratch_dir = scratch_dir
-        self.table_h = table_h
+
+        ################################
+        # TODO add random directional lighting
+        # the light is placed at some random position sampled from a sphere, with min height
+        ################################
+        sphere_radius, min_height = 3, 2 # TODO adjust this
+        h = self.rng.uniform(min_height, sphere_radius)
+        r = np.sqrt(sphere_radius**2 - h**2)
+        theta = self.rng.uniform(0, 2*np.pi)
+        x, y = r * np.cos(theta), r * np.sin(theta)
+
+        aim_at_range = (0.5, 1.5) # TODO adjust this
+        aim_at_r = self.rng.uniform(*aim_at_range)
+        theta = self.rng.uniform(0, 2*np.pi)
+        aim_at_x, aim_at_y = aim_at_r * np.cos(theta), aim_at_r * np.sin(theta)
+        
+        # add color with random color, strenth, 
+        
 
     def shift_scene(self, shift: np.ndarray):
         """Shift the scene by a given vector.
@@ -469,6 +529,15 @@ class BaseTestScene(abc.ABC):
 
     @abc.abstractmethod
     def add_test_objects(self):
+        pass
+
+    @abc.abstractmethod
+    def add_block_objects(self):
+        """_summary_
+        TODO: MAKE SURE the object is properly oriented so that it blocks the test object
+        TODO: Write a utility function to check the object's principal axis
+        SHOULD be randomly placed.
+        """
         pass
 
     @abc.abstractmethod

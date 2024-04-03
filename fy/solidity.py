@@ -58,6 +58,7 @@ class SolidityTestScene(BaseTestScene):
             # simulate both trajectories separately, and save the states
             trajectories = []
             for i, obj in enumerate(self.test_obj):
+                # set other objects static except the current object
                 self.set_test_objects_static()
                 obj.static = False 
                 self.set_object_state(obj, init_states[i])

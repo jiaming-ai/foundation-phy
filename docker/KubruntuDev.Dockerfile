@@ -30,10 +30,16 @@ COPY docs/requirements.txt ./requirements_docs.txt
 
 # --- install python dependencies
 RUN pip install --upgrade pip wheel
-RUN pip install --upgrade -r requirements.txt
-RUN pip install --upgrade -r requirements_full.txt
-RUN pip install --upgrade -r requirements_dev.txt
-RUN pip install --upgrade -r requirements_docs.txt
+# RUN pip install --upgrade -r requirements.txt
+# RUN pip install --upgrade -r requirements_full.txt
+# RUN pip install --upgrade -r requirements_dev.txt
+# RUN pip install --upgrade -r requirements_docs.txt
+
+# don't upgrade, just install
+RUN pip install -r requirements.txt
+RUN pip install -r requirements_full.txt
+RUN pip install -r requirements_dev.txt
+RUN pip install -r requirements_docs.txt
 
 # --- cleanup
 RUN rm -f requirements.txt 

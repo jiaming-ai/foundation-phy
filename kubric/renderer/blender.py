@@ -188,6 +188,9 @@ class Blender(core.View):
       preferences = bpy.context.preferences
       cycles_preferences = preferences.addons['cycles'].preferences
       cuda_devices, opencl_devices = cycles_preferences.get_devices()
+
+      # uncomment the following line to use CUDA
+      # NOTE: currently this doesn't work due to some unknown reasons
       # cycles_preferences.compute_device_type = "CUDA"
 
       print(f'Current cycles render device: {cycles_preferences.compute_device_type}')

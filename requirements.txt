@@ -7,7 +7,7 @@ cloudml-hypertune
 google-cloud-storage
 imageio[ffmpeg]
 munch
-numpy>=1.17
+numpy==1.23.1
 pandas
 pypng
 pyquaternion
