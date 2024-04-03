@@ -17,6 +17,7 @@ docker build -f docker/KubruntuDev.Dockerfile -t kubricdockerhub/kubruntudev:lat
 docker run --rm -it \
   --user 1000:1000 \
   --volume "$PWD:/workspace" \
+  --volume "$PWD/cache:/gcache" \
   --workdir "/workspace" \
   kubricdockerhub/kubruntudev:latest \
   /bin/bash

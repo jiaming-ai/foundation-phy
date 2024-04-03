@@ -1,4 +1,5 @@
 
+import logging
 import kubric as kb
 import imageio
 import bpy
@@ -43,13 +44,16 @@ def get_args():
   parser.add_argument("--save_states", type=txt2bool, default=False) # save states
   parser.add_argument("--render_both_results", type=txt2bool, default=True) # render both violation and non-violation results
   
+  
   FLAGS = parser.parse_args()
 
   if FLAGS.debug:
-    FLAGS.logging_level = "DEBUG"
+    FLAGS.logging_level = logging.DEBUG
     FLAGS.save_states = True
     print("Debug mode is on")
     
+  else:
+    FLAGS.logging_level = logging.INFO
   return FLAGS
 
 def write_video(source_dir, output_file):

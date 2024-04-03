@@ -25,13 +25,13 @@ import imageio
 import numpy as np
 import png
 import tensorflow as tf
-
+import os
 from kubric import plotting
 from kubric.kubric_typing import PathLike
 
 
 logger = logging.getLogger(__name__)
-
+CACHE_ROOT_DIR = "/gcache/"
 
 def as_path(path: PathLike) -> epath.Path:
   """Convert str or pathlike object to epath.Path.
@@ -45,13 +45,37 @@ def as_path(path: PathLike) -> epath.Path:
 @contextlib.contextmanager
 def gopen(filename: PathLike, mode: str = "w"):
   """Simple contextmanager to open a file using tf.io.gfile (and ensure the parent dir exists)."""
-  filename = as_path(filename)
-  if mode[0] in {"w", "a"}:  # if writing mode ...
-    # ensure directory exists
-    filename.parent.mkdir(parents=True, exist_ok=True)
-    logging.info("Writing to '%s'", filename)
-  with tf.io.gfile.GFile(str(filename), mode=mode) as fp:
-    yield fp
+
+  # first check if the file is in cache
+  file_str = str(filename)
+  f_dir = file_str.split("//")[-1]
+  f_dir = f_dir.split("/")
+  f_name = f_dir[-1]
+  f_dir = CACHE_ROOT_DIR + "/".join(f_dir[:-1])
+  f_full_path = f_dir + "/" + f_name
+  if os.path.exists(f_full_path):
+    with open(f_full_path, mode) as f:
+      yield f
+  
+  else:
+    filename = as_path(filename)
+    if mode[0] in {"w", "a"}:  # if writing mode ...
+      # ensure directory exists
+      filename.parent.mkdir(parents=True, exist_ok=True)
+      logging.info("Writing to '%s'", filename)
+    
+    os.makedirs(f_dir, exist_ok=True)
+    with tf.io.gfile.GFile(str(filename), mode=mode) as fp:
+      if mode[0] == "r":
+        # write to cache
+        with open(f_full_path, 'w') as f:
+          f.write(fp.read())
+        
+        with open(f_full_path, 'r') as f:
+          yield f
+
+      else:
+        yield fp
 
 
 def write_pkl(data: Any, filename: PathLike) -> None:

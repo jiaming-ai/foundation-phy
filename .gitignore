@@ -17,4 +17,5 @@ examples/KuBasic/Cone/*
 Dockerfile
 output_tmp/*
 tmp/*
+cache/*
 *output*

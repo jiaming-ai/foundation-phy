@@ -23,8 +23,6 @@ class SolidityTestScene(BaseTestScene):
         self.collision_z_distance = 0.1 # distance between obj_1 and obj_2 in z direction
         self.collision_height = 1.5
 
-        print("Initiating base..")
-
         super().__init__(FLAGS)
         
 

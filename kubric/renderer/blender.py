@@ -89,7 +89,8 @@ class Blender(core.View):
 
     # the ray-tracing engine is set here because it affects the availability of some features
     bpy.context.scene.render.engine = "CYCLES"
-    self.use_gpu = os.getenv("KUBRIC_USE_GPU", "False").lower() in ("true", "1", "t")
+    # self.use_gpu = os.getenv("KUBRIC_USE_GPU", "False").lower() in ("true", "1", "t")
+    self.use_gpu = True
 
     blender_utils.activate_render_passes(normal=True, optical_flow=True, segmentation=True, uv=True)
     self._setup_scene_shading()
@@ -182,6 +183,7 @@ class Blender(core.View):
   # fixed use GPU according to https://github.com/google-research/kubric/issues/224
   @use_gpu.setter
   def use_gpu(self, value: bool):
+    print(f"Setting use_gpu to {value}")
     self.blender_scene.cycles.device = "GPU" if value else "CPU"
     if value:
       # call get_devices() to let Blender detect GPU devices

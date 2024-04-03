@@ -4,7 +4,6 @@
 from fy.utils import get_args
 from fy.collision import CollisionTestScene
 import logging
-from fy.base import BaseTestScene
 import kubric as kb
 import imageio
 from fy.utils import write_video
