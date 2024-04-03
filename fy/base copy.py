@@ -7,10 +7,11 @@ from kubric.renderer import Blender
 import numpy as np
 import os
 import abc
-from etils import epath
+
 from kubric import core
 from kubric.core import color
 
+from etils import epath
 
 # --- Some configuration values
 # the region in which to place objects [(min), (max)]
@@ -19,17 +20,6 @@ DYNAMIC_SPAWN_REGION = [(-5, -5, 1), (5, 5, 5)]
 VELOCITY_RANGE = [(-4., -4., 0.), (4., 4., 0.)]
 
 SCENE_EXCLUDE = ["wobbly_bridge"]
-
-print("loading shapenet")
-source_path = os.getenv("SHAPENET_GCP_BUCKET", "gs://kubric-unlisted/assets/ShapeNetCore.v2.json")
-shapenet_assets = kb.AssetSource.from_manifest(source_path)
-print("loading gso")
-gso_assets = kb.AssetSource.from_manifest("gs://kubric-public/assets/GSO/GSO.json")
-print("loading kubasic")
-kubasic_assets = kb.AssetSource.from_manifest("gs://kubric-public/assets/KuBasic/KuBasic.json")
-print("loading hdri")
-hdri_assets = kb.AssetSource.from_manifest("gs://kubric-public/assets/HDRI_haven/HDRI_haven.json")
-print("finished loading all the sources")
 
 class BaseTestScene(abc.ABC):
     """Base class for all test scenes.
@@ -58,9 +48,9 @@ class BaseTestScene(abc.ABC):
         self.test_obj = None
 
         # load asset sources
-        self.kubasic = kubasic_assets # kb.AssetSource.from_manifest(FLAGS.kubasic_assets)
-        self.gso = gso_assets # kb.AssetSource.from_manifest(FLAGS.gso_assets)
-        self.hdri_source = hdri_assets # kb.AssetSource.from_manifest(FLAGS.hdri_assets)
+        self.kubasic = kb.AssetSource.from_manifest(FLAGS.kubasic_assets)
+        self.gso = kb.AssetSource.from_manifest(FLAGS.gso_assets)
+        self.hdri_source = kb.AssetSource.from_manifest(FLAGS.hdri_assets)
 
         # load background ids
         if os.path.exists("fy/configs/scene_asset_ids.txt"):
@@ -71,36 +61,20 @@ class BaseTestScene(abc.ABC):
             self.scene_asset_id_list = self.hdri_source.all_asset_ids
         
         # load object ids
-        if os.path.exists("fy/configs/gso_small_obj_ids.txt"):
-            with open("fy/configs/gso_small_obj_ids.txt", "r") as f:
+        if os.path.exists("fy/configs/small_obj_ids.txt"):
+            with open("fy/configs/small_obj_ids.txt", "r") as f:
                 self.small_object_asset_id_list = f.read().split("\n")
             logging.info(f"Loaded {len(self.small_object_asset_id_list)} allowed small object asset ids from file.")
             
-        if os.path.exists("fy/configs/gso_big_obj_ids.txt"):
-            with open("fy/configs/gso_big_obj_ids.txt", "r") as f:
+        if os.path.exists("fy/configs/big_obj_ids.txt"):
+            with open("fy/configs/big_obj_ids.txt", "r") as f:
                 self.big_object_asset_id_list = f.read().split("\n")
             logging.info(f"Loaded {len(self.big_object_asset_id_list)} allowed big object asset ids from file.")
-
-        if os.path.exists("fy/configs/gso_super_big_obj_ids.txt"):
-            with open("fy/configs/gso_super_big_obj_ids.txt", "r") as f:
-                self.super_big_object_asset_id_list = f.read().split("\n")
-            logging.info(f"Loaded {len(self.super_big_object_asset_id_list)} allowed super big object asset ids from file.")
-
-        if os.path.exists("fy/configs/gso_super_small_obj_ids.txt"):
-            with open("fy/configs/gso_super_small_obj_ids.txt", "r") as f:
-                self.super_small_object_asset_id_list = f.read().split("\n")
-            logging.info(f"Loaded {len(self.super_small_object_asset_id_list)} allowed super small object asset ids from file.")
                 
-        if os.path.exists("fy/configs/gso_all_obj_asset_ids.txt"):
-            with open("fy/configs/gso_all_obj_asset_ids.txt", "r") as f:
+        if os.path.exists("fy/configs/all_obj_ids.txt"):
+            with open("fy/configs/all_obj_ids.txt", "r") as f:
                 all_gso_ids = f.read().split("\n")
-                
-            # assert small and big list are in all list
-            for small_id in self.small_object_asset_id_list:
-                assert small_id in all_gso_ids, f"{small_id} not in all list"
-            for big_id in self.big_object_asset_id_list:
-                assert big_id in all_gso_ids, f"{big_id} not in all list"
-        
+
         if os.path.exists("fy/meshes/scenes"):
             with open("fy/configs/tables.txt", "r") as f:
                 self.scenes = [os.path.join("fy/meshes/scenes", f) 
@@ -109,9 +83,15 @@ class BaseTestScene(abc.ABC):
         if os.path.exists("fy/configs/tables.txt"):
             with open("fy/configs/tables.txt", "r") as f:
                 self.shapenet_table_ids = f.read().split("\n")
-          
+                
+            # assert small and big list are in all list
+            for small_id in self.small_object_asset_id_list:
+                assert small_id in all_gso_ids, f"{small_id} not in all list"
+            for big_id in self.big_object_asset_id_list:
+                assert big_id in all_gso_ids, f"{big_id} not in all list"
+            
+            
         self.object_asset_id_list = self.gso.all_asset_ids
-        # self._setup_scene()
         self._setup_indoor_scene()
     
     # def create_lights(self,rng):
@@ -136,25 +116,23 @@ class BaseTestScene(abc.ABC):
     #         light.look_at((0, 5, 0))
         
     #     return lights
-    def prepare_scene(self, shift=[0, 5, 0]):
-
-        if self.flags.debug:
-            logging.info("Ignore background objects.")
-        else:
-            self.add_background_static_objects(3)
-            self.add_background_dynamic_objects(1)
-
-        self.add_test_objects()
-        
-        self.shift_scene(shift)
-        self.generate_keyframes()
     
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        kb.done()
-
+    # def load_violation_scene(self):
+    #     assert self.prepared_scenes["violation"] is not None, "Violation scene not prepared"
+        
+    #     self.scene = self.prepared_scenes["violation"]
+    #     self.simulator = PyBullet(self.scene, self.scratch_dir)
+    #     self.renderer = Blender(self.scene, self.scratch_dir)
+    #     self.renderer._set_ambient_light_hdri(self.background_hdri.filename)
+        
+    # def load_non_violation_scene(self):
+    #     assert self.prepared_scenes["non_violation"] is not None, "Non-violation scene not prepared"
+        
+    #     self.scene = self.prepared_scenes["non_violation"]
+    #     self.simulator = PyBullet(self.scene, self.scratch_dir)
+    #     self.renderer = Blender(self.scene, self.scratch_dir)
+    #     self.renderer._set_ambient_light_hdri(self.background_hdri.filename)
+        
     def load_blender_scene(self, blender_scene):
         """Create empty scene and load blender scene
 
@@ -214,7 +192,7 @@ class BaseTestScene(abc.ABC):
 
         
         logging.info("Setting up the Camera...")
-        scene.camera = kb.PerspectiveCamera()
+        scene.camera = kb.PerspectiveCamera(name="camera")
 
         # each scene has a different camera setup, depending on the scene
         scene.camera.position = (0, -3, 1.7) # height 1.7, away 2m
@@ -230,33 +208,21 @@ class BaseTestScene(abc.ABC):
 
     def _setup_indoor_scene(self, 
                             ):
-        """Setup the indoor scene for rendering
+        """Setup the infoor scene for rendering
 
         """
         # --- Common setups & resources
         scene, rng, output_dir, scratch_dir = kb.setup(self.flags)
-
-        logging.info("Loading blender scene")
         blender_scene = rng.choice(self.scenes)
         self.load_blender_scene(blender_scene)
         scene.camera = kb.PerspectiveCamera(name="camera", position=(0,0,0))
         
-
-        # add floor to the scene
-        logging.info("Adding floor to the scene")
-        self._delete_from_blender_scene("floor")
-        self.scene += kb.Cube(name="floor", scale=(10, 10, 0.001), position=(0, 0, -0.001),
-                        static=True)
-        
-        floor_obj = bpy.context.object
-        floor_obj.name = "floor"
-
-        bpy.data.objects["floor"].hide_render = True
-        bpy.data.objects["floor"].hide_viewport = True
-
+        # add floor  to the scene
+        # self.scene += kb.Cube(name="floor", scale=(10, 10, 0.001), position=(0, 0, -0.001),
+        #                 static=True)
+        # bpy.data.objects['floor'].hide_render = True
 
         # add table to the scene
-        logging.info("Adding table to the scene")
         table = self.shapenet.create(asset_id=rng.choice(self.shapenet_table_ids), static=True)
         table.metadata["is_dynamic"] = False
         table.scale = [2] * 3
@@ -271,6 +237,19 @@ class BaseTestScene(abc.ABC):
         self.scratch_dir = scratch_dir
         self.table_h = table_h
 
+
+    def set_random_rotation(self, obj):
+        """Set a random rotation for the object.
+
+        """
+        def mul_2pi(x):
+            return x * 2 * np.pi
+        u, v, w = self.rng.uniform(0, 1, 3)
+        obj.quaternion = ( np.sqrt(1-u) * np.sin(mul_2pi(v)), \
+            np.sqrt(1-u) * np.cos(mul_2pi(v)), \
+            np.sqrt(u) *  np.sin(mul_2pi(w)), \
+            np.sqrt(u) * np.cos(mul_2pi(w)) )
+        
     def shift_scene(self, shift: np.ndarray):
         """Shift the scene by a given vector.
 
@@ -279,99 +258,64 @@ class BaseTestScene(abc.ABC):
             obj.position = np.array(obj.position) + shift
         self.scene.camera.position = np.array(self.scene.camera.position) + shift
         
-    # def add_static_object(self, n_obj:int = 1):
+    def add_static_objects(self, n_obj:int = 1):
         
-    #     logging.info("Randomly placing %d static objects:", n_obj)
-    #     for i in range(n_obj):
-    #         obj = self.gso.create(asset_id=self.rng.choice(self.object_asset_id_list))
-    #         assert isinstance(obj, kb.FileBasedObject)
-    #         scale = 2
-    #         obj.scale = scale
-    #         obj.metadata["scale"] = scale
-    #         self.scene += obj
-    #         kb.move_until_no_overlap(obj, self.simulator, spawn_region=STATIC_SPAWN_REGION,
-    #                                 rng=self.rng)
-    #         obj.friction = 1.0
-    #         obj.restitution = 0.0
-    #         obj.metadata["is_dynamic"] = False
-    #         logging.info("    Added %s at %s", obj.asset_id, obj.position)
+        logging.info("Randomly placing %d static objects:", n_obj)
+        for i in range(n_obj):
+            obj = self.gso.create(asset_id=self.rng.choice(self.object_asset_id_list))
+            assert isinstance(obj, kb.FileBasedObject)
+            scale = 2
+            obj.scale = scale
+            obj.metadata["scale"] = scale
+            self.scene += obj
+            kb.move_until_no_overlap(obj, self.simulator, spawn_region=STATIC_SPAWN_REGION,
+                                    rng=self.rng)
+            obj.friction = 1.0
+            obj.restitution = 0.0
+            obj.metadata["is_dynamic"] = False
+            logging.info("    Added %s at %s", obj.asset_id, obj.position)
 
-    #     logging.info("Running 100 frames of simulation to let static objects settle ...")
-    #     _, _ = self.simulator.run(frame_start=-100, frame_end=0)
+        logging.info("Running 100 frames of simulation to let static objects settle ...")
+        _, _ = self.simulator.run(frame_start=-100, frame_end=0)
 
-    def add_object(self, 
+    def add_dynamic_object(self, 
                    asset_id=None, 
                    position=None, 
-                   quaternion=None,
-                   velocity=(0,0,0), 
-                   is_dynamic=True,
-                   scale=2, 
-                   **kwargs):
+                   velocity=None, 
+                   scale=None):
         """Add objects to the scene.
 
-        
         """
-        # delete the old object with the same name to avoid clashing
-        if 'name' in kwargs:
-            self._delete_from_blender_scene(kwargs['name'])
-        # delete the object with the same input name
         if asset_id is not None:
-            obj = self.gso.create(asset_id=asset_id, **kwargs)
+            obj = self.gso.create(asset_id=asset_id)
         else:
-            obj = self.gso.create(asset_id=self.rng.choice(self.object_asset_id_list), **kwargs)
+            obj = self.gso.create(asset_id=self.rng.choice(self.object_asset_id_list))
 
         assert isinstance(obj, kb.FileBasedObject)
-
-
-        obj.velocity = velocity
+        # scale = self.rng.uniform(0.75, 3.0) if scale is None else scale
+        # obj.scale = scale / np.max(obj.bounds[1] - obj.bounds[0])
         obj.scale = scale
+
         obj.metadata["scale"] = scale
-
-        if quaternion is not None:
-            obj.quaternion = quaternion
-        else:
-            self.set_random_rotation(obj)
-
-        self.scene += obj
-
-        # find the object by name in bpy.data.objects
-        if 'name' in kwargs:
-            name = kwargs['name']
-            name_len = len(name)
-
-            for obj_bpy in bpy.data.objects:
-                if obj_bpy.name[:name_len+1] == name+".": 
-                    obj_bpy.name = name
-                    break
 
         if position is not None:
             obj.position = position
         else:
             kb.move_until_no_overlap(obj, self.simulator, spawn_region=STATIC_SPAWN_REGION,
                                     rng=self.rng)
+        self.scene += obj
 
-        if is_dynamic:
-            # reduce the restitution of the object to make it less bouncy
-            # account for the gravity
-            restituion_scale = -self.gravity[2] / 9.8
-            obj.restitution *= restituion_scale
+        if velocity is not None:
+            obj.velocity = velocity
         else:
-            # make the object static
-            obj.friction = 1.0
-            obj.restitution = 0.0
-        
-        obj.static = not is_dynamic
-        obj.metadata["is_dynamic"] = is_dynamic
+            obj.velocity = (0, 0, 0)
 
+        self.set_random_rotation(obj)
+        
+        obj.metadata["is_dynamic"] = True
         logging.info("    Added %s at %s", obj.asset_id, obj.position)
 
         return obj
-
-    def _delete_from_blender_scene(self, name):
-        obj_del = bpy.context.scene.objects.get(name)
-        if obj_del:
-            bpy.data.objects.remove(obj_del, do_unlink = True)
-            logging.info(f"The existing object '{name}' will be replaced")
 
     def _run_simulate(self, save_state=False):
         """Run simulation and write to keyframes of objects
@@ -410,6 +354,11 @@ class BaseTestScene(abc.ABC):
 
         return data_stack
         
+    # def simulate_and_render(self, save_state=False, save_img=False):
+    #     animation, collisions = self.run_simulate(save_state)
+    #     data_stack = self.render(save_img)
+    #     return animation, collisions, data_stack
+    
     def write_metadata(self):
         logging.info("Collecting and storing metadata for each object.")
         kb.write_json(filename=self.output_dir / "metadata.json", data={
@@ -431,41 +380,22 @@ class BaseTestScene(abc.ABC):
         logging.info("Output directory changed to %s", self.output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    def add_background_static_objects(self, n_obj:int = 1):
-        """Add some static objects as background objects
-
-        """
-        for _ in range(n_obj):
-            self.add_object(is_dynamic=False)
-            
-        logging.info("Running 100 frames of simulation to let static objects settle ...")
-        _, _ = self.simulator.run(frame_start=-100, frame_end=0)
-
-    def add_background_dynamic_objects(self, 
-                                       n_obj:int = 1, 
-                                       scale: float = 2,
-                                       x_range: tuple = (-3, 3), 
-                                       y_range: tuple = (0.5, 1.5), 
-                                       z_range: tuple = (3, 5)):
-        """Add some other dynamic objects as background objects
+    def add_extra_dynamic_objects(self, n_obj:int = 1):
+        """Add some other dynamic objects
         
         """
         for _ in range(n_obj):
-            # make random free fall
-            rand_pos = self.rng.uniform(-1, 1, 3)
-            
-            for i, u in enumerate([x_range, y_range, z_range]):
-                mean = (u[1] + u[0]) / 2
-                scale = (u[1] - u[0]) / 2
-                rand_pos[i] = rand_pos[i] * scale + mean 
-
+            rand_pos = self.rng.uniform(-0.5, 0.5, 3)
+            rand_pos[0] *= 6
+            rand_pos[1] += 1
+            rand_pos[2] *= 2
+            rand_pos[2] += 4
             rand_vel = self.rng.uniform(-3, 3, 3)
             sign = -1 if rand_pos[0] < 0 else 1
             rand_vel[0] = -sign * abs(rand_vel[0]) # make the object move towards the center
-            self.add_object(position=rand_pos,
-                            velocity=rand_vel,
-                            is_dynamic=True,
-                            scale=scale)
+            self.add_dynamic_object(position=rand_pos,
+                               velocity=rand_vel,
+                               scale=2)
 
     @abc.abstractmethod
     def add_test_objects(self):
@@ -475,108 +405,46 @@ class BaseTestScene(abc.ABC):
     def generate_keyframes(self):
         pass
         
+    def save_test_obj_state(self, test_case):
+        assert test_case in ["violation", "non_violation"], "test_case must be either 'violation' or 'non_violation'"
+        
+        save_properties = ["position", "velocity", "quaternion"]
+        state = [ {} for obj in self.test_obj ]
 
-    ############################
-    # helper functions
-    ############################
-    def set_random_rotation(self, obj):
-        """Set a random rotation for the object.
-
-        """
-        def mul_2pi(x):
-            return x * 2 * np.pi
-        u, v, w = self.rng.uniform(0, 1, 3)
-        obj.quaternion = ( np.sqrt(1-u) * np.sin(mul_2pi(v)), \
-            np.sqrt(1-u) * np.cos(mul_2pi(v)), \
-            np.sqrt(u) *  np.sin(mul_2pi(w)), \
-            np.sqrt(u) * np.cos(mul_2pi(w)) )
-    @staticmethod
-    def get_object_state_at_frame(obj, frame):
-        """Get the state of the object at a given frame
-
-        Args:
-            obj (_type_): object
-            frame (_type_): frame number 
-
-        Returns:
-            _type_: _description_
-        """
-        state = {}
-        for prop in ["position", "velocity", "quaternion", "angular_velocity"]:
-            state[prop] = obj.get_value_at(prop, frame)
-        return state
-    
-    @staticmethod
-    def set_object_state(obj, state):
-        """Set the current state of the object
-
-        Args:
-            obj (_type_): _description_
-            state (_type_): _description_
-        """
-        for prop in state:
-            setattr(obj, prop, state[prop])
-
-    def get_object_keyframes(self, obj):
-        """Get all keyframes for the object
-        Args:
-            obj (_type_): _description_
-
-        Returns:
-            _type_: _description_
-        """
-        save_properties = ["position", "velocity", "quaternion", "angular_velocity"]
-        state = {}
-        for prop in save_properties:
-            for frame in range(self.scene.frame_end+1):
-                if prop not in state:
-                    state[prop] = {}
-                state[prop][frame] = obj.keyframes[prop][frame].copy()
+        for i, obj in enumerate(self.test_obj):
+            for prop in save_properties:
+                for frame in range(self.scene.frame_end+1):
+                    if prop not in state[i]:
+                        state[i][prop] = {}
+                    state[i][prop][frame] = obj.keyframes[prop][frame].copy()
                     
-        return state
+        self.test_obj_states[test_case] = state
         
-    def set_object_keyframes(self, obj, state):
-        """Set keyframes for the object
-
-        Args:
-            obj (_type_): _description_
-            state (_type_): _description_
-        """
-        for prop in state:
-            for frame in range(self.scene.frame_end+1):
-                setattr(obj, prop, state[prop][frame])
-                obj.keyframe_insert(prop, frame)
-
-    def set_test_objects_static(self):
-        for obj in self.test_obj:
-            obj.static = True
-            
-    def set_test_objects_dynamic(self):
-        for obj in self.test_obj:
-            obj.static = False
+    def load_test_obj_state(self, test_case):
+        assert test_case in ["violation", "non_violation"], "test_case must be either 'violation' or 'non_violation'"
         
-    def save_violation_scene(self):
-        states = []
-        for obj in self.test_obj:
-            state = self.get_object_keyframes(obj)
-            states.append(state)
-        self.test_obj_states["violation"] = states
+        state = self.test_obj_states[test_case]
         
-    def load_violation_scene(self):
         for i, obj in enumerate(self.test_obj):
-            self.set_object_keyframes(obj, self.test_obj_states["violation"][i])
+            for prop in state[i]:
+                for frame in range(self.scene.frame_end+1):
+                    setattr(obj, prop, state[i][prop][frame])
+                    obj.keyframe_insert(prop, frame)
         
-    def save_non_violation_scene(self):
-        states = []
-        for obj in self.test_obj:
-            state = self.get_object_keyframes(obj)
-            states.append(state)
-        self.test_obj_states["non_violation"] = states
-        
-    def load_non_violation_scene(self):
-        for i, obj in enumerate(self.test_obj):
-            self.set_object_keyframes(obj, self.test_obj_states["non_violation"][i])
-        
+    def prepare_scene(self):
 
+        self.add_static_objects(3)
+        self.add_extra_dynamic_objects(1)
+        self.add_test_objects()
+        
+        # self.shift_scene([0, 5, 0])
+
+        self.generate_keyframes()
+    
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        kb.done()
 
                                     
