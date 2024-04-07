@@ -648,17 +648,16 @@ class BaseTestScene(abc.ABC):
         SHOULD be randomly placed (not implemented).
         Move to the table after rotation (not implemented)
         """
-        for _ in range(10):
-            block_obj_id = self.rng.choice(self.super_big_object_asset_id_list)
-            block_obj = self.add_object(asset_id=block_obj_id,
-                                    position=(0, 0, 0),
-                                    quaternion=(1,0,0,0),
-                                    is_dynamic=True,
-                                    scale=1.25, 
-                                    # name="block"
-                                    )
+        block_obj_id = self.rng.choice(self.super_big_object_asset_id_list)
+        block_obj = self.add_object(asset_id=block_obj_id,
+                                position=(0, 0, 0),
+                                quaternion=(1,0,0,0),
+                                is_dynamic=True,
+                                scale=1.25, 
+                                # name="block"
+                                )
 
-            aligh_block_objs(block_obj)
+        aligh_block_objs(block_obj)
 
         block_obj.position = (0, 0, self.ref_h - block_obj.aabbox[0][2])
 
