@@ -23,3 +23,9 @@ docker run --rm -it \
   /bin/bash
 
 ```
+
+For testing
+```
+python fy/run_tiancheng.py --use_indoor_scene 1 --save_states True --debug True
+
+```
