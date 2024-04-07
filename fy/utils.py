@@ -44,6 +44,8 @@ def get_args():
   parser.add_argument("--save_states", type=txt2bool, default=False) # save states
   parser.add_argument("--render_both_results", type=txt2bool, default=True) # render both violation and non-violation results
   
+  # ratio
+  parser.add_argument("--use_indoor_scene", type=float, default=0.5)
   
   FLAGS = parser.parse_args()
 
@@ -168,20 +170,20 @@ def set_camera_orn_constraint(position=(0, 0, 0)):
   return focus_con
 
 def set_camera_keyframes(vals=[-20, 20], frames=[0, 72], interpolation='CUBIC'):
-        path_con = bpy.data.objects['Camera'].constraints['Follow Path']
-        camera = bpy.data.objects['Camera']  
+  path_con = bpy.data.objects['Camera'].constraints['Follow Path']
+  camera = bpy.data.objects['Camera']  
 
-        for val, frame in zip(vals, frames):
-            path_con.offset = val
-            path_con.keyframe_insert("offset", frame=frame)
+  for val, frame in zip(vals, frames):
+      path_con.offset = val
+      path_con.keyframe_insert("offset", frame=frame)
 
-        # --- set keyframe interpolation
-        action = camera.animation_data.action
-        for fcurve in action.fcurves:
-            if fcurve.data_path == "constraints[\"Follow Path\"].offset":
-                for keyframe in fcurve.keyframe_points:
-                    keyframe.interpolation = interpolation
-                    keyframe.easing='EASE_IN_OUT'
+  # --- set keyframe interpolation
+  action = camera.animation_data.action
+  for fcurve in action.fcurves:
+      if fcurve.data_path == "constraints[\"Follow Path\"].offset":
+          for keyframe in fcurve.keyframe_points:
+              keyframe.interpolation = interpolation
+              keyframe.easing='EASE_IN_OUT'
 
 def set_object_disappear(name, frame):
   obj = bpy.data.objects[name]
@@ -238,6 +240,34 @@ def getVisibleVertexFraction(obj_name, rng, sample_num=1000):
           num_vert_in_fov += (target.name == obj.name)
 
     return num_vert_in_fov / sample_num
+
+
+def aligh_block_objs(obj):
+
+  """Align the block object
+        Args:
+            obj: kubric object instance
+
+  """
+  x_size = obj.aabbox[1][0] - obj.aabbox[0][0]
+  y_size = obj.aabbox[1][1] - obj.aabbox[0][1]
+  z_size = obj.aabbox[1][1] - obj.aabbox[0][1]
+
+  # find the normal vector of the bbox surface with largest area
+  axis = np.argmin(np.array([x_size, y_size, z_size]))
+
+  axis_rot_mapping = {
+     0: kb.Quaternion(axis=[0, 0, 1], degrees=-90), 
+     1: kb.Quaternion(axis=[1, 0, 0], degrees=0), 
+     2: kb.Quaternion(axis=[1, 0, 0], degrees=90)
+  }
+
+  quaternion_tf = axis_rot_mapping[axis]
+  obj.quaternion = quaternion_tf * obj.quaternion
+
+  ## TODO: rotate around y to set the principal axis
+
+  
 
 
 # def a(sample_num=1000):

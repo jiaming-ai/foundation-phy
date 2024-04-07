@@ -13,7 +13,7 @@ class PathParams:
 
 
 frame_end = 36
-frame_mid = int(frame_end) / 2
+frame_mid = int(frame_end / 2)
 path_template = [
     {"euler_xyz": [0,0,0],      "key_frame_val": [-20, 20],      "key_frame_num": [0, frame_end]}, 
     {"euler_xyz": [-25,0,0],    "key_frame_val": [-20, 20],      "key_frame_num": [0, frame_end]}, # !
