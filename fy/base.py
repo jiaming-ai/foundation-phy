@@ -50,8 +50,10 @@ class BaseTestScene(abc.ABC):
         self.background_hdri = None
 
         self.camera_path_config = FLAGS.camera_path_config
+        self.block_obj = None
         self.ref_h = 0
         self.add_table = False
+        self.table_scale = 2
         self.shapenet_table_ids = None
 
         self.render_data = ("rgba",)
@@ -149,8 +151,11 @@ class BaseTestScene(abc.ABC):
             self.add_table = True
             self._setup_indoor_scene()
         else:
+            self.add_table = False
             self._setup_hdri_scene()
             self.ref_h = 0
+
+        self._random_rotate_scene()
 
         if self.flags.debug:
             logging.info("Ignore background objects.")
@@ -161,7 +166,7 @@ class BaseTestScene(abc.ABC):
         self.add_block_objects()
         self.add_test_objects()
 
-        self._random_rotate_scene()
+        
         
         # self.shift_scene(shift)
 
@@ -170,9 +175,7 @@ class BaseTestScene(abc.ABC):
         if self.camera_path_config:
             self._set_camera_path(self.camera_path_config)
             
-        self._set_camera_focus_point()
-
-        self.generate_keyframes()
+        self._set_camera_focus_point([0, 0, self.ref_h])
 
     def _set_camera_path(self, path_config):
         '''
@@ -183,7 +186,7 @@ class BaseTestScene(abc.ABC):
         euler_xyz_deg = path_config["euler_xyz"]
         key_frame_idx = path_config["key_frame_num"]
         key_frame_val = path_config["key_frame_val"]
-
+        
         camera = bpy.data.objects['camera']
         bpy.ops.curve.primitive_bezier_circle_add(enter_editmode=False, 
                                                 align='WORLD', 
@@ -266,22 +269,35 @@ class BaseTestScene(abc.ABC):
         se3_tf[:3, :3] = rotation_matrix_np
         
         for obj in bpy.data.objects:
+            print(obj) if obj.name[0]=="V" or obj.name[0]=="T" else print("")
             matrix_world_old = obj.matrix_world.copy()
+            if obj.name == "table":
+                obj.rotation_mode = "XYZ"
+                obj.rotation_euler[2] = angle
+                break
+
             matrix_world_new = se3_tf @ matrix_world_old 
 
             for i in range(4):
                 for j in range(4):
                     matrix_world_old[i][j] = matrix_world_new[i,j]
 
+            # if obj.name == "table":
+            #     obj.location[2] = -self.table_scale * self.table.aabbox[0][2] # matrix_world_old[2][3]
+            #     print(-self.table_scale * self.table.aabbox[0][2], matrix_world_old)
             obj.matrix_world = matrix_world_old
 
-
     def prepare_scene(self):
-        
+        self.i = 0
         while True:
             self._setup_everything()
             if self._check_scene():
-                break
+                self.generate_keyframes()
+                return 
+            self.renderer.save_state(f"temp_scene/invalid_{self.i}.blend")
+            kb.done()
+            self.i += 1
+
 
             # check statistics of success rate
             # self.sample_history[index] += 1
@@ -358,8 +374,8 @@ class BaseTestScene(abc.ABC):
         texture_node.image = bpy.data.images.load(background_hdri.filename)
 
         
-        logging.info("Setting up the Camera...")
-        scene.camera = kb.PerspectiveCamera(name="camera")
+        print("Setting up the Camera...")
+        self._add_camera(scene)
 
         # each scene has a different camera setup, depending on the scene
         scene.camera.position = (0, -3, 1.7) # height 1.7, away 2m
@@ -373,6 +389,13 @@ class BaseTestScene(abc.ABC):
         self.scratch_dir = scratch_dir
         self.background_hdri = background_hdri
 
+    def _add_camera(self, scene):
+        scene.camera = kb.PerspectiveCamera(name="camera")
+
+        # avoid name clash
+        cam_name = "camera"
+        set_name(cam_name)
+
     def _setup_indoor_scene(self, 
                             ):
         """Setup the indoor scene for rendering
@@ -384,7 +407,7 @@ class BaseTestScene(abc.ABC):
         logging.info("Loading blender scene")
         blender_scene = rng.choice(self.scenes)
         self.load_blender_scene(blender_scene)
-        self.scene.camera = kb.PerspectiveCamera(name="camera", position=(0,0,0))
+        self._add_camera(self.scene)
         
 
         # add floor to the scene
@@ -403,14 +426,17 @@ class BaseTestScene(abc.ABC):
         # TODO*: only add table when the task requires, add the list
         if self.add_table: 
             logging.info("Adding table to the scene")
-            table = shapenet_assets.create(asset_id=rng.choice(self.shapenet_table_ids), static=True)
+            table = shapenet_assets.create(asset_id=rng.choice(self.shapenet_table_ids), static=True, name="table")
+            # table_obj_id = self.shapenet_table_ids[0]#rng.choice(self.shapenet_table_ids)
+            # table = self.add_object(assed_id=self.shapenet_table_ids[0], name="table")
+            self.table = table
             table.metadata["is_dynamic"] = False
-            table.scale = [2] * 3
+            table.scale = [self.table_scale] * 3
             table.quaternion = kb.Quaternion(axis=[1, 0, 0], degrees=90)
             table.position = table.position - (0, 0, table.aabbox[0][2])  
             table_h = table.aabbox[1][2] - table.aabbox[0][2]
-
             self.scene.add(table)
+            set_name("table")
             self.ref_h = table_h
        
         self.rng = rng
@@ -427,17 +453,24 @@ class BaseTestScene(abc.ABC):
         theta = self.rng.uniform(0, 2*np.pi)
         x, y = r * np.cos(theta), r * np.sin(theta)
 
-        aim_at_range = (0.5, 1.5) # TODO^ adjust this NOTDIR LIGHT
+        aim_at_range = (0, 0.5) # TODO^ adjust this 
         aim_at_r = self.rng.uniform(*aim_at_range)
         theta = self.rng.uniform(0, 2*np.pi)
         aim_at_x, aim_at_y = aim_at_r * np.cos(theta), aim_at_r * np.sin(theta)
 
-        intensity_range = (10, 100) # TODO^ adjust this
+        intensity_range = (10, 2000) # TODO^ adjust this
         intensity_val = self.rng.uniform(*intensity_range)
+
+        shadow_soft_size = (0.05, 0.5)
         
         # add color with random color, strenth, 
-        self.scene += kb.DirectionalLight(name="direc_light", position=(x, y, self.ref_h),
+        self.scene += kb.SpotLight(name="direc_light", position=(x, y, self.ref_h),
                         look_at=(aim_at_x, aim_at_y, self.ref_h), intensity=intensity_val)
+        set_name("direc_light")
+
+        direc_light = bpy.data.objects["direc_light"]
+        direc_light.data.shadow_soft_size = self.rng.uniform(*shadow_soft_size)
+
 
     def shift_scene(self, shift: np.ndarray):
         """Shift the scene by a given vector.
@@ -505,12 +538,7 @@ class BaseTestScene(abc.ABC):
         # find the object by name in bpy.data.objects
         if 'name' in kwargs:
             name = kwargs['name']
-            name_len = len(name)
-
-            for obj_bpy in bpy.data.objects:
-                if obj_bpy.name[:name_len+1] == name+".": 
-                    obj_bpy.name = name
-                    break
+            set_name(name)
 
         if position is not None:
             obj.position = position
@@ -649,17 +677,17 @@ class BaseTestScene(abc.ABC):
         Move to the table after rotation (not implemented)
         """
         block_obj_id = self.rng.choice(self.super_big_object_asset_id_list)
-        block_obj = self.add_object(asset_id=block_obj_id,
+        self.block_obj = self.add_object(asset_id=block_obj_id,
                                 position=(0, 0, 0),
                                 quaternion=(1,0,0,0),
                                 is_dynamic=True,
                                 scale=1.25, 
-                                # name="block"
+                                name="block"
                                 )
 
-        aligh_block_objs(block_obj)
+        aligh_block_objs(self.block_obj)
 
-        block_obj.position = (0, 0, self.ref_h - block_obj.aabbox[0][2])
+        self.block_obj.position = (0, 0, self.ref_h - self.block_obj.aabbox[0][2])
 
         # randomly jitter the object
         ...

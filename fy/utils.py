@@ -201,7 +201,23 @@ def set_object_disappear(name, frame):
           for keyframe in fcurve.keyframe_points:
               keyframe.interpolation = "CONSTANT"
 
-                    
+def set_name(name):
+  """
+    Rename the object to avoid the format *.001
+
+    Params:
+    - camera (bpy.types.Object): The camera object from which visibility is checked.
+    - obj (bpy.types.Object): The object whose vertices' visibility is to be checked.
+
+    Returns:
+    - float: The fraction of vertices of the object that are visible from the camera position.
+    """
+  name_len = len(name)
+
+  for obj_bpy in bpy.data.objects:
+      if obj_bpy.name[:name_len+1] == name+".": 
+          obj_bpy.name = name
+          break           
 
 def getVisibleVertexFraction(obj_name, rng, sample_num=1000):
     """
@@ -219,7 +235,7 @@ def getVisibleVertexFraction(obj_name, rng, sample_num=1000):
     Returns:
     - float: The fraction of vertices of the object that are visible from the camera position.
     """
-    camera = bpy.data.objects['Camera']
+    camera = bpy.data.objects['camera']
     obj = bpy.data.objects[obj_name]
     
     camera_loc = [camera.matrix_world[0][3], camera.matrix_world[1][3], camera.matrix_world[2][3]]
@@ -240,6 +256,44 @@ def getVisibleVertexFraction(obj_name, rng, sample_num=1000):
           num_vert_in_fov += (target.name == obj.name)
 
     return num_vert_in_fov / sample_num
+
+def objInFOV(obj_name, th=20):
+  """
+    Roughly estimates and returns whether the object is inside the camera's FoC.
+
+    This function works by computing the angle between the camera's Z-axis and the 
+    camera-to-object vector. 
+
+    Params:
+    - obj_name (str): the name of the object
+    - th (float): the angle threshold (in degrees)
+
+    Returns:
+    - bool: ...
+  """
+  # get the orientation of the camera's z-axis
+  try:
+    obj = bpy.data.objects[obj_name]
+  except:
+     print(f"The object with name {obj} doesn't exist")
+
+  camera = bpy.data.objects['camera']
+  cam_axis = np.array(camera.matrix_world)[:3, :3] @ np.array([0,0,-1]).T
+  
+  obj_loc = [obj.matrix_world[0][3], obj.matrix_world[1][3], obj.matrix_world[2][3]]
+  cam_loc = [camera.matrix_world[0][3], camera.matrix_world[1][3], camera.matrix_world[2][3]]
+  
+  # get the normalized distance vector
+  dist = np.array(obj_loc) - np.array(cam_loc)
+  dist /= np.linalg.norm(dist)
+
+  # calculate the angle between two vectors
+  if np.allclose(dist.T, cam_axis):
+    angle = 0
+  else:
+    angle = np.arccos(dist.T @ cam_axis)  * 180 / np.pi
+
+  return angle < th
 
 
 def aligh_block_objs(obj):

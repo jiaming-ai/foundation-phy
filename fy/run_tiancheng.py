@@ -69,6 +69,7 @@ def generate_test_scene(test_class, FLAGS,output_dir=None) -> None:
         # render the violation state
         test_scene.change_output_dir( output_dir + "violation" )
 
+        print("Rendering the violation state")
         # igore rendering if debug is on
         if not FLAGS.debug and False:
             test_scene.render(save_to_file=True)
