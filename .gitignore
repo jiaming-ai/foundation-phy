@@ -20,3 +20,4 @@ tmp/*
 cache/*
 *output*
 gcache/
+visualize_shapenet/
