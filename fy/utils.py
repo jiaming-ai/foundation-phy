@@ -43,6 +43,7 @@ def get_args():
   parser.add_argument("--generate_violation", type=txt2bool, default=True) # generate violation results
   parser.add_argument("--save_states", type=txt2bool, default=False) # save states
   parser.add_argument("--render_both_results", type=txt2bool, default=True) # render both violation and non-violation results
+  parser.add_argument("--move_camera", type=bool, default=True) # move camera
   
   # ratio
   parser.add_argument("--use_indoor_scene", type=float, default=0.5)
@@ -297,7 +298,6 @@ def objInFOV(obj_name, th=20):
 
 
 def aligh_block_objs(obj):
-
   """Align the block object
         Args:
             obj: kubric object instance

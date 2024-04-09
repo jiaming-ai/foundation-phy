@@ -97,6 +97,8 @@ class PermananceTestScene(BaseTestScene):
         Args:
             (bool): 
         """
+
+        # TODO: farthest point sampling, try reduce num of samples
         frame_end = self.flags.frame_end
 
         frame_idx = np.arange(1, frame_end+1)

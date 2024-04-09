@@ -34,6 +34,24 @@ print("loading hdri")
 hdri_assets = kb.AssetSource.from_manifest("gs://kubric-public/assets/HDRI_haven/HDRI_haven.json")
 print("finished loading all the sources")
 
+# TODO
+frame_mid = 18
+frame_end = 36
+path_template = [
+    {"euler_xyz": [0,0,0],      "key_frame_val": [-20, 20],      "key_frame_num": [0, frame_end]}, 
+    {"euler_xyz": [-25,0,0],    "key_frame_val": [-20, 20],      "key_frame_num": [0, frame_end]}, # !
+    {"euler_xyz": [0,-20,0],    "key_frame_val": [-20, 20],      "key_frame_num": [0, frame_end]}, 
+    {"euler_xyz": [0,-40,0],    "key_frame_val": [-15, 20],      "key_frame_num": [0, frame_end]}, 
+    {"euler_xyz": [0,-60,0],    "key_frame_val": [-10, 15],      "key_frame_num": [0, frame_end]}, # !
+    {"euler_xyz": [0,20,0],    "key_frame_val": [25, -20],      "key_frame_num": [0, frame_end]}, 
+    {"euler_xyz": [0,40,0],    "key_frame_val": [15, -20],      "key_frame_num": [0, frame_end]}, # !
+    {"euler_xyz": [0,60,0],    "key_frame_val": [10, -15],      "key_frame_num": [0, frame_end]}, # !
+    {"euler_xyz": [0,0,0],      "key_frame_val": [-20, 5, -20], "key_frame_num": [0, frame_mid, frame_end]}, 
+    {"euler_xyz": [0,0,0],      "key_frame_val": [20, -5, 20], "key_frame_num": [0, frame_mid, frame_end]}, 
+    {"euler_xyz": [0,-90,0],      "key_frame_val": [20, 5,  20], "key_frame_num": [0, frame_mid, frame_end]}, # ? 
+    # {"euler_xyz": [0,0,0],      "key_frame_val": [-10, 20, -10], "key_frame_num": [0, frame_mid, frame_end]}, 
+    # {"euler_xyz": [0,0,0], "key_frame_val": [-20, 20], "key_frame_num": [0, frame_end]}, 
+]
 class BaseTestScene(abc.ABC):
     """Base class for all test scenes.
     A test scene includes all relevant information to render a scene
@@ -49,7 +67,6 @@ class BaseTestScene(abc.ABC):
         self.scratch_dir = None
         self.background_hdri = None
 
-        self.camera_path_config = FLAGS.camera_path_config
         self.block_obj = None
         self.ref_h = 0
         self.add_table = False
@@ -116,9 +133,15 @@ class BaseTestScene(abc.ABC):
             with open("fy/configs/tables.txt", "r") as f:
                 self.shapenet_table_ids = f.read().split("\n")
           
+        # load camera path config
+        self.camera_path_config = path_template
+        
         self.object_asset_id_list = self.gso.all_asset_ids
         
-        self.sample_history = {}
+        for idx in range(len(self.camera_path_config)):
+            self.camera_path_config[idx]["count"] = 0
+
+        self.cur_camera_traj = None
 
         # self._setup_scene()
     
@@ -146,7 +169,6 @@ class BaseTestScene(abc.ABC):
     #     return lights
     def _setup_everything(self, shift=[0, 5, 0]):
 
-        # TODO*, add flag to choose which scene to use
         if random.random() <= self.flags.use_indoor_scene:
             self.add_table = True
             self._setup_indoor_scene()
@@ -169,13 +191,12 @@ class BaseTestScene(abc.ABC):
         
         
         # self.shift_scene(shift)
-
-        ## TODO*: random sample camera trajectory (postion) 
-        ## and save camera trajectory index
-        if self.camera_path_config:
-            self._set_camera_path(self.camera_path_config)
+        if self.flags.move_camera:
+            traj_idx = random.randint(0, len(self.camera_path_config)-1)
+            self.cur_camera_traj = random.choice(self.camera_path_config)
+            self._set_camera_path(self.cur_camera_traj)
             
-        self._set_camera_focus_point([0, 0, self.ref_h])
+        self._set_camera_focus_point([0, 0, self.ref_h]) # auto set the height to be the table height if exists
 
     def _set_camera_path(self, path_config):
         '''
@@ -235,7 +256,6 @@ class BaseTestScene(abc.ABC):
     
     def _set_camera_focus_point(self, look_at=[0,0,0]):
         """Shift camera to look at a specific point
-        TODO*
 
         Args:
             look_at (list, optional): _description_. Defaults to [0,0,0].
@@ -254,7 +274,6 @@ class BaseTestScene(abc.ABC):
 
     def _random_rotate_scene(self):
         """Randomly rotate the scene and table (if has) 
-        TODO*
         """
         # Generate a random angle between 0 and 2*pi
         angle = np.random.uniform(0, 2*np.pi)
@@ -288,21 +307,22 @@ class BaseTestScene(abc.ABC):
             obj.matrix_world = matrix_world_old
 
     def prepare_scene(self):
-        self.i = 0
+        """Generate a new random test scene"""
+
         while True:
             self._setup_everything()
             if self._check_scene():
                 self.generate_keyframes()
                 return 
-            self.renderer.save_state(f"temp_scene/invalid_{self.i}.blend")
-            kb.done()
-            self.i += 1
+            
+            if self.flags.move_camera:
+                self.cur_camera_traj["count"] += 1
 
+                if self.cur_camera_traj["count"] >= 20:
+                    # remove the camera trajectory index
+                    self.camera_path_config.pop(self.cur_camera_traj)
+                    print(f"Removed camera trajectory {self.cur_camera_traj}")
 
-            # check statistics of success rate
-            # self.sample_history[index] += 1
-            # TODO: if too much failure, remove camera trajectory index
-        
     def _check_scene(self):
         """Check if the scene is valid. Return Flase if the scene is invalid.
         TODO: implement (Override) this function
@@ -423,7 +443,6 @@ class BaseTestScene(abc.ABC):
         bpy.data.objects["floor"].hide_viewport = True
 
 
-        # TODO*: only add table when the task requires, add the list
         if self.add_table: 
             logging.info("Adding table to the scene")
             table = shapenet_assets.create(asset_id=rng.choice(self.shapenet_table_ids), static=True, name="table")
@@ -546,7 +565,7 @@ class BaseTestScene(abc.ABC):
             kb.move_until_no_overlap(obj, self.simulator, spawn_region=STATIC_SPAWN_REGION,
                                     rng=self.rng)
 
-        if is_dynamic and False: # temporarily set false
+        if is_dynamic: # temporarily set false
             # reduce the restitution of the object to make it less bouncy
             # account for the gravity
             restituion_scale = -self.gravity[2] / 9.8
