@@ -12,7 +12,9 @@ from kubric import core
 from kubric.core import color
 import random
 from scipy.spatial.transform import Rotation
+from mathutils import Euler
 from utils import *
+from bpy import context as C
 
 
 
@@ -72,6 +74,9 @@ class BaseTestScene(abc.ABC):
         self.add_table = False
         self.table_scale = 2
         self.shapenet_table_ids = None
+
+        self.floor_name = "floor_kb"
+        self.table_name = "table_kb"
 
         self.render_data = ("rgba",)
         self.background_hdri_id = FLAGS.background_hdri_id
@@ -184,11 +189,10 @@ class BaseTestScene(abc.ABC):
         else:
             self.add_background_static_objects(3)
             self.add_background_dynamic_objects(1)
-
         self.add_block_objects()
         self.add_test_objects()
 
-        
+        self._run_simulate()
         
         # self.shift_scene(shift)
         if self.flags.move_camera:
@@ -276,44 +280,42 @@ class BaseTestScene(abc.ABC):
         """Randomly rotate the scene and table (if has) 
         """
         # Generate a random angle between 0 and 2*pi
-        angle = np.random.uniform(0, 2*np.pi)
-
+        # angle = np.random.uniform(0, 2*np.pi)
+        angle = np.pi/4
+        
         # Create a rotation matrix around the Z-axis
         rotation_matrix = Rotation.from_euler('z', angle).as_matrix()
 
         # Convert the rotation matrix to a NumPy array
-        rotation_matrix_np = np.array(rotation_matrix)
-
-        se3_tf = np.eye(4)
-        se3_tf[:3, :3] = rotation_matrix_np
+        # se3_tf = rotation_matrix.to_matrix().to_4x4()
+        se3_tf = Euler((0, 0, angle)).to_matrix().to_4x4()
         
+
+        linked_objs = []
         for obj in bpy.data.objects:
-            print(obj) if obj.name[0]=="V" or obj.name[0]=="T" else print("")
-            matrix_world_old = obj.matrix_world.copy()
-            if obj.name == "table":
+            for c in obj.children:
+                linked_objs.append(c)
+
+        for obj in bpy.data.objects: 
+            # linked objs are not rotated
+            if obj in linked_objs or obj.name == "direc_light": 
+                continue
+
+            if obj.name == self.table_name:
                 obj.rotation_mode = "XYZ"
-                obj.rotation_euler[2] = angle
-                break
-
-            matrix_world_new = se3_tf @ matrix_world_old 
-
-            for i in range(4):
-                for j in range(4):
-                    matrix_world_old[i][j] = matrix_world_new[i,j]
-
-            # if obj.name == "table":
-            #     obj.location[2] = -self.table_scale * self.table.aabbox[0][2] # matrix_world_old[2][3]
-            #     print(-self.table_scale * self.table.aabbox[0][2], matrix_world_old)
-            obj.matrix_world = matrix_world_old
+            else:
+                obj.matrix_world = se3_tf @ obj.matrix_world
 
     def prepare_scene(self):
         """Generate a new random test scene"""
-
+        self.i = 0
         while True:
             self._setup_everything()
             if self._check_scene():
                 self.generate_keyframes()
                 return 
+            # self.renderer.save_state(f"temp_scene/invalid_{self.i}.blend")
+            self.i += 1
             
             if self.flags.move_camera:
                 self.cur_camera_traj["count"] += 1
@@ -348,7 +350,6 @@ class BaseTestScene(abc.ABC):
         scene = core.scene.Scene.from_flags(self.flags)
         simulator = PyBullet(scene, self.scratch_dir)
         renderer = Blender(scene, self.scratch_dir,custom_scene=blender_scene)
-        
         self.scene = scene
         self.simulator = simulator
         self.renderer = renderer
@@ -432,22 +433,23 @@ class BaseTestScene(abc.ABC):
 
         # add floor to the scene
         logging.info("Adding floor to the scene")
-        self._delete_from_blender_scene("floor")
-        self.scene += kb.Cube(name="floor", scale=(10, 10, 0.001), position=(0, 0, -0.001),
+        self._delete_from_blender_scene(self.floor_name)
+        self.scene += kb.Cube(name=self.floor_name, scale=(10, 10, 0.001), position=(0, 0, -0.001),
                         static=True)
         
         floor_obj = bpy.context.object
-        floor_obj.name = "floor"
+        floor_obj.name = self.floor_name
 
-        bpy.data.objects["floor"].hide_render = True
-        bpy.data.objects["floor"].hide_viewport = True
+        bpy.data.objects[self.floor_name].hide_render = True
+        bpy.data.objects[self.floor_name].hide_viewport = True
 
 
         if self.add_table: 
             logging.info("Adding table to the scene")
-            table = shapenet_assets.create(asset_id=rng.choice(self.shapenet_table_ids), static=True, name="table")
+            table_id = rng.choice(self.shapenet_table_ids)
+            table = shapenet_assets.create(asset_id=table_id, static=True, name=self.table_name)
             # table_obj_id = self.shapenet_table_ids[0]#rng.choice(self.shapenet_table_ids)
-            # table = self.add_object(assed_id=self.shapenet_table_ids[0], name="table")
+            # table = self.add_object(assed_id=self.shapenet_table_ids[0], name=self.table_name)
             self.table = table
             table.metadata["is_dynamic"] = False
             table.scale = [self.table_scale] * 3
@@ -455,8 +457,10 @@ class BaseTestScene(abc.ABC):
             table.position = table.position - (0, 0, table.aabbox[0][2])  
             table_h = table.aabbox[1][2] - table.aabbox[0][2]
             self.scene.add(table)
-            set_name("table")
+            set_name(self.table_name)
             self.ref_h = table_h
+            self.table_id = table_id
+            print(self.table_id)
        
         self.rng = rng
         self.output_dir = output_dir
@@ -477,7 +481,7 @@ class BaseTestScene(abc.ABC):
         theta = self.rng.uniform(0, 2*np.pi)
         aim_at_x, aim_at_y = aim_at_r * np.cos(theta), aim_at_r * np.sin(theta)
 
-        intensity_range = (10, 2000) # TODO^ adjust this
+        intensity_range = (10, 1000) # TODO^ adjust this
         intensity_val = self.rng.uniform(*intensity_range)
 
         shadow_soft_size = (0.05, 0.5)
@@ -536,7 +540,12 @@ class BaseTestScene(abc.ABC):
             self._delete_from_blender_scene(kwargs['name'])
         # delete the object with the same input name
         if asset_id is not None:
-            obj = self.gso.create(asset_id=asset_id, **kwargs)
+            try:
+                obj = self.gso.create(asset_id=asset_id, **kwargs)
+                quaternion_tf = kb.Quaternion(axis=[1, 0, 0], degrees=0)
+            except:
+                obj = shapenet_assets.create(asset_id=asset_id, **kwargs)
+                quaternion_tf = kb.Quaternion(axis=[1, 0, 0], degrees=90)
         else:
             obj = self.gso.create(asset_id=self.rng.choice(self.object_asset_id_list), **kwargs)
 
@@ -548,7 +557,7 @@ class BaseTestScene(abc.ABC):
         obj.metadata["scale"] = scale
 
         if quaternion is not None:
-            obj.quaternion = quaternion
+            obj.quaternion = quaternion_tf * quaternion
         else:
             self.set_random_rotation(obj)
 
@@ -565,7 +574,9 @@ class BaseTestScene(abc.ABC):
             kb.move_until_no_overlap(obj, self.simulator, spawn_region=STATIC_SPAWN_REGION,
                                     rng=self.rng)
 
-        if is_dynamic: # temporarily set false
+        # temporarily set false 
+        # to mitigate error "'XXXTestScene' object has no attribute 'gravity'"
+        if is_dynamic and False: 
             # reduce the restitution of the object to make it less bouncy
             # account for the gravity
             restituion_scale = -self.gravity[2] / 9.8
@@ -690,8 +701,8 @@ class BaseTestScene(abc.ABC):
     # @abc.abstractmethod
     def add_block_objects(self):
         """_summary_
-        TODO!!!: MAKE SURE the object is properly oriented so that it blocks the test object
-        TODO^: Write a utility function to check the object's principal axis
+        MAKE SURE the object is properly oriented so that it blocks the test object
+        Write a utility function to check the object's principal axis
         SHOULD be randomly placed (not implemented).
         Move to the table after rotation (not implemented)
         """
@@ -706,7 +717,7 @@ class BaseTestScene(abc.ABC):
 
         aligh_block_objs(self.block_obj)
 
-        self.block_obj.position = (0, 0, self.ref_h - self.block_obj.aabbox[0][2])
+        self.block_obj.position = (0, 0, self.ref_h + 0.001 - self.block_obj.aabbox[0][2])
 
         # randomly jitter the object
         ...

@@ -75,7 +75,7 @@ class PermananceTestScene(BaseTestScene):
                                 position=(0, 0, 0),
                                 quaternion=(1,0,0,0),
                                 is_dynamic=True,
-                                scale=1, 
+                                scale=0.5, 
                                 name="small_obj") 
         
         x = np.random.uniform(-0.1, 0.1)

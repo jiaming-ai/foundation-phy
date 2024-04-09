@@ -9,6 +9,7 @@ from fy.utils import write_video
 from fy.solidity import SolidityTestScene
 from fy.collision import CollisionTestScene
 from fy.permanance import PermananceTestScene
+from tqdm import tqdm
 
 from etils import epath
 from random import choice
@@ -37,7 +38,7 @@ def main() -> None:
     logging.basicConfig(level=FLAGS.logging_level)
 
     num_per_cls = 50
-    max_trails = 1
+    max_trails = 1000
     test_cls_all = {
         # "solidity": SolidityTestScene,
         # "collision": CollisionTestScene
@@ -45,7 +46,7 @@ def main() -> None:
     }
     for test_name, test_cls in test_cls_all.items():
         n = 0
-        for i in range(max_trails):
+        for i in tqdm(range(max_trails)):
             print(f"========== Rendering {test_name} test {n} ===========")
             output_dir = f"output_temp/{test_name}/scene_{n}/"
             FLAGS.job_dir = output_dir
@@ -53,8 +54,8 @@ def main() -> None:
 
             generate_test_scene(test_cls, FLAGS, output_dir)
             n += 1
-            if n >= num_per_cls:
-                break
+            # if n >= num_per_cls:
+            #     break
             
 
 
@@ -71,7 +72,7 @@ def generate_test_scene(test_class, FLAGS,output_dir=None) -> None:
 
         print("Rendering the violation state")
         # igore rendering if debug is on
-        if not FLAGS.debug and False:
+        if not FLAGS.debug:
             test_scene.render(save_to_file=True)
             write_video(output_dir + "violation/", output_dir + "violation.mp4")
 
@@ -82,7 +83,7 @@ def generate_test_scene(test_class, FLAGS,output_dir=None) -> None:
         print("Rendering the non-violation state")
 
         # igore rendering if debug is on
-        if not FLAGS.debug and False:
+        if not FLAGS.debug:
             test_scene.render(save_to_file=True)
             write_video(output_dir + "non_violation/", output_dir + "non_violation.mp4")
         
