@@ -31,7 +31,7 @@ from kubric.kubric_typing import PathLike
 
 
 logger = logging.getLogger(__name__)
-CACHE_ROOT_DIR = "/gcache/"
+CACHE_ROOT_DIR = "gcache/"
 
 def as_path(path: PathLike) -> epath.Path:
   """Convert str or pathlike object to epath.Path.

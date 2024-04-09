@@ -19,3 +19,5 @@ output_tmp/*
 tmp/*
 cache/*
 *output*
+gcache/
+visualize_shapenet/

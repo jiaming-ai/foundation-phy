@@ -2,12 +2,13 @@
 
 
 from fy.utils import get_args
-from fy.collision import CollisionTestScene
 import logging
 import kubric as kb
 import imageio
 from fy.utils import write_video
 from fy.solidity import SolidityTestScene
+from fy.collision import CollisionTestScene
+from fy.permanance import PermananceTestScene
 
 from etils import epath
 
@@ -18,8 +19,9 @@ def main() -> None:
     num_per_cls = 50
     max_trails = 1
     test_cls_all = {
-        "solidity": SolidityTestScene,
+        # "solidity": SolidityTestScene,
         # "collision": CollisionTestScene
+        "Permanance": PermananceTestScene 
     }
     for test_name, test_cls in test_cls_all.items():
         n = 0

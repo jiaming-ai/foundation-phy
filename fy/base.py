@@ -10,6 +10,10 @@ import abc
 from etils import epath
 from kubric import core
 from kubric.core import color
+import random
+from scipy.spatial.transform import Rotation
+from utils import *
+
 
 
 # --- Some configuration values
@@ -35,7 +39,7 @@ class BaseTestScene(abc.ABC):
     A test scene includes all relevant information to render a scene
     
     """
-    def __init__(self, FLAGS) -> None:
+    def __init__(self, FLAGS, camera_path_config=None) -> None:
         self.simulator = None
         self.scene = None
         self.renderer = None
@@ -45,7 +49,11 @@ class BaseTestScene(abc.ABC):
         self.scratch_dir = None
         self.background_hdri = None
 
-        self.table_h = None
+        self.camera_path_config = FLAGS.camera_path_config
+        self.block_obj = None
+        self.ref_h = 0
+        self.add_table = False
+        self.table_scale = 2
         self.shapenet_table_ids = None
 
         self.render_data = ("rgba",)
@@ -138,9 +146,16 @@ class BaseTestScene(abc.ABC):
     #     return lights
     def _setup_everything(self, shift=[0, 5, 0]):
 
-        # TODO, add flag to choose which scene to use
-        # self._setup_indoor_scene()
-        self._setup_hdri_scene()
+        # TODO*, add flag to choose which scene to use
+        if random.random() <= self.flags.use_indoor_scene:
+            self.add_table = True
+            self._setup_indoor_scene()
+        else:
+            self.add_table = False
+            self._setup_hdri_scene()
+            self.ref_h = 0
+
+        self._random_rotate_scene()
 
         if self.flags.debug:
             logging.info("Ignore background objects.")
@@ -151,36 +166,138 @@ class BaseTestScene(abc.ABC):
         self.add_block_objects()
         self.add_test_objects()
 
-        self._random_rotate_scene()
-        self._set_camera_look_at()
+        
         
         # self.shift_scene(shift)
 
-        ## TODO: random sample camera trajectory (postion) and save camera trajectory index
+        ## TODO*: random sample camera trajectory (postion) 
+        ## and save camera trajectory index
+        if self.camera_path_config:
+            self._set_camera_path(self.camera_path_config)
+            
+        self._set_camera_focus_point([0, 0, self.ref_h])
 
-        self.generate_keyframes()
+    def _set_camera_path(self, path_config):
+        '''
+        Set the camera's circular path
+        '''
 
-    def _set_camera_look_at(self, look_at=[0,0,0]):
+        center = [0, 0, 1.7] # TODO add this to config: path_config["center"]
+        euler_xyz_deg = path_config["euler_xyz"]
+        key_frame_idx = path_config["key_frame_num"]
+        key_frame_val = path_config["key_frame_val"]
+        
+        camera = bpy.data.objects['camera']
+        bpy.ops.curve.primitive_bezier_circle_add(enter_editmode=False, 
+                                                align='WORLD', 
+                                                location=center, 
+                                                )
+        circle = bpy.context.object
+        euler_xyz = np.array(euler_xyz_deg) * np.pi / 180
+
+        # scale and rotate the x and y axis of the circle
+        for i in range(2):
+            rot_ang_rad = euler_xyz[i] 
+
+            # can't apply when angle = pi/2
+            if np.isclose(np.abs(rot_ang_rad), np.pi/2):
+                logging.warning("Singularity detected while scaling the circle")
+                continue
+            
+            circle.scale[1-i] /=  np.cos(rot_ang_rad)
+            circle.rotation_euler[i] = rot_ang_rad # rotation around y axis
+            sin_prev = np.cos(rot_ang_rad)
+
+        circle.rotation_euler[2] = euler_xyz[2]
+
+        # set up camera constraint
+        path_con = camera.constraints.new('FOLLOW_PATH')
+        path_con.target = circle
+        path_con.forward_axis = 'TRACK_NEGATIVE_Y'
+        path_con.up_axis = 'UP_Z'
+        path_con.use_curve_follow = True
+        camera.location = (0, 0, 0)
+
+        # setup camera keyframes
+        for val, frame in zip(key_frame_val, key_frame_idx):
+            path_con.offset = val
+            path_con.keyframe_insert("offset", frame=frame)
+
+        # set interpolation between keyframes
+        action = camera.animation_data.action
+        for fcurve in action.fcurves:
+            if fcurve.data_path == "constraints[\"Follow Path\"].offset":
+                for keyframe in fcurve.keyframe_points:
+                    keyframe.interpolation = 'CUBIC'
+                    keyframe.easing='EASE_IN_OUT'
+
+        return path_con
+    
+    def _set_camera_focus_point(self, look_at=[0,0,0]):
         """Shift camera to look at a specific point
-        TODO
+        TODO*
 
         Args:
             look_at (list, optional): _description_. Defaults to [0,0,0].
         """
-        pass
+        camera = bpy.data.objects['camera']
+
+        # Create an Empty object at the target point
+        bpy.ops.object.empty_add(location=look_at)
+        focus_point = bpy.context.object
+
+        # Add a "Track_To" constraint to the camera
+        focus_con = camera.constraints.new(type='TRACK_TO')
+        focus_con.target = focus_point
+        focus_con.track_axis = 'TRACK_NEGATIVE_Z'
+        focus_con.up_axis = 'UP_Y'
 
     def _random_rotate_scene(self):
         """Randomly rotate the scene and table (if has) 
-        TODO
+        TODO*
         """
-        pass
+        # Generate a random angle between 0 and 2*pi
+        angle = np.random.uniform(0, 2*np.pi)
+
+        # Create a rotation matrix around the Z-axis
+        rotation_matrix = Rotation.from_euler('z', angle).as_matrix()
+
+        # Convert the rotation matrix to a NumPy array
+        rotation_matrix_np = np.array(rotation_matrix)
+
+        se3_tf = np.eye(4)
+        se3_tf[:3, :3] = rotation_matrix_np
+        
+        for obj in bpy.data.objects:
+            print(obj) if obj.name[0]=="V" or obj.name[0]=="T" else print("")
+            matrix_world_old = obj.matrix_world.copy()
+            if obj.name == "table":
+                obj.rotation_mode = "XYZ"
+                obj.rotation_euler[2] = angle
+                break
+
+            matrix_world_new = se3_tf @ matrix_world_old 
+
+            for i in range(4):
+                for j in range(4):
+                    matrix_world_old[i][j] = matrix_world_new[i,j]
+
+            # if obj.name == "table":
+            #     obj.location[2] = -self.table_scale * self.table.aabbox[0][2] # matrix_world_old[2][3]
+            #     print(-self.table_scale * self.table.aabbox[0][2], matrix_world_old)
+            obj.matrix_world = matrix_world_old
 
     def prepare_scene(self):
-        
+        self.i = 0
         while True:
             self._setup_everything()
             if self._check_scene():
-                break
+                self.generate_keyframes()
+                return 
+            self.renderer.save_state(f"temp_scene/invalid_{self.i}.blend")
+            kb.done()
+            self.i += 1
+
 
             # check statistics of success rate
             # self.sample_history[index] += 1
@@ -257,8 +374,8 @@ class BaseTestScene(abc.ABC):
         texture_node.image = bpy.data.images.load(background_hdri.filename)
 
         
-        logging.info("Setting up the Camera...")
-        scene.camera = kb.PerspectiveCamera()
+        print("Setting up the Camera...")
+        self._add_camera(scene)
 
         # each scene has a different camera setup, depending on the scene
         scene.camera.position = (0, -3, 1.7) # height 1.7, away 2m
@@ -272,6 +389,13 @@ class BaseTestScene(abc.ABC):
         self.scratch_dir = scratch_dir
         self.background_hdri = background_hdri
 
+    def _add_camera(self, scene):
+        scene.camera = kb.PerspectiveCamera(name="camera")
+
+        # avoid name clash
+        cam_name = "camera"
+        set_name(cam_name)
+
     def _setup_indoor_scene(self, 
                             ):
         """Setup the indoor scene for rendering
@@ -283,7 +407,7 @@ class BaseTestScene(abc.ABC):
         logging.info("Loading blender scene")
         blender_scene = rng.choice(self.scenes)
         self.load_blender_scene(blender_scene)
-        scene.camera = kb.PerspectiveCamera(name="camera", position=(0,0,0))
+        self._add_camera(self.scene)
         
 
         # add floor to the scene
@@ -299,39 +423,54 @@ class BaseTestScene(abc.ABC):
         bpy.data.objects["floor"].hide_viewport = True
 
 
-        # TODO: only add table when the task requires, add the list
-        if self.flags.task in ["gravity"]: 
+        # TODO*: only add table when the task requires, add the list
+        if self.add_table: 
             logging.info("Adding table to the scene")
-            table = shapenet_assets.create(asset_id=rng.choice(self.shapenet_table_ids), static=True)
+            table = shapenet_assets.create(asset_id=rng.choice(self.shapenet_table_ids), static=True, name="table")
+            # table_obj_id = self.shapenet_table_ids[0]#rng.choice(self.shapenet_table_ids)
+            # table = self.add_object(assed_id=self.shapenet_table_ids[0], name="table")
+            self.table = table
             table.metadata["is_dynamic"] = False
-            table.scale = [2] * 3
+            table.scale = [self.table_scale] * 3
             table.quaternion = kb.Quaternion(axis=[1, 0, 0], degrees=90)
             table.position = table.position - (0, 0, table.aabbox[0][2])  
             table_h = table.aabbox[1][2] - table.aabbox[0][2]
-
             self.scene.add(table)
-            self.table_h = table_h
+            set_name("table")
+            self.ref_h = table_h
        
         self.rng = rng
         self.output_dir = output_dir
         self.scratch_dir = scratch_dir
 
         ################################
-        # TODO add random directional lighting
+        # add random directional lighting
         # the light is placed at some random position sampled from a sphere, with min height
         ################################
-        sphere_radius, min_height = 3, 2 # TODO adjust this
+        sphere_radius, min_height = 3, 2 # TODO^ adjust this
         h = self.rng.uniform(min_height, sphere_radius)
         r = np.sqrt(sphere_radius**2 - h**2)
         theta = self.rng.uniform(0, 2*np.pi)
         x, y = r * np.cos(theta), r * np.sin(theta)
 
-        aim_at_range = (0.5, 1.5) # TODO adjust this
+        aim_at_range = (0, 0.5) # TODO^ adjust this 
         aim_at_r = self.rng.uniform(*aim_at_range)
         theta = self.rng.uniform(0, 2*np.pi)
         aim_at_x, aim_at_y = aim_at_r * np.cos(theta), aim_at_r * np.sin(theta)
+
+        intensity_range = (10, 2000) # TODO^ adjust this
+        intensity_val = self.rng.uniform(*intensity_range)
+
+        shadow_soft_size = (0.05, 0.5)
         
         # add color with random color, strenth, 
+        self.scene += kb.SpotLight(name="direc_light", position=(x, y, self.ref_h),
+                        look_at=(aim_at_x, aim_at_y, self.ref_h), intensity=intensity_val)
+        set_name("direc_light")
+
+        direc_light = bpy.data.objects["direc_light"]
+        direc_light.data.shadow_soft_size = self.rng.uniform(*shadow_soft_size)
+
 
     def shift_scene(self, shift: np.ndarray):
         """Shift the scene by a given vector.
@@ -399,12 +538,7 @@ class BaseTestScene(abc.ABC):
         # find the object by name in bpy.data.objects
         if 'name' in kwargs:
             name = kwargs['name']
-            name_len = len(name)
-
-            for obj_bpy in bpy.data.objects:
-                if obj_bpy.name[:name_len+1] == name+".": 
-                    obj_bpy.name = name
-                    break
+            set_name(name)
 
         if position is not None:
             obj.position = position
@@ -412,7 +546,7 @@ class BaseTestScene(abc.ABC):
             kb.move_until_no_overlap(obj, self.simulator, spawn_region=STATIC_SPAWN_REGION,
                                     rng=self.rng)
 
-        if is_dynamic:
+        if is_dynamic and False: # temporarily set false
             # reduce the restitution of the object to make it less bouncy
             # account for the gravity
             restituion_scale = -self.gravity[2] / 9.8
@@ -474,10 +608,11 @@ class BaseTestScene(abc.ABC):
         
     def write_metadata(self):
         logging.info("Collecting and storing metadata for each object.")
+        # return
         kb.write_json(filename=self.output_dir / "metadata.json", data={
             "flags": vars(self.flags),
             "metadata": kb.get_scene_metadata(self.scene),
-            "camera": kb.get_camera_info(self.scene.camera),
+            # "camera": kb.get_camera_info(self.scene.camera),
             "instances": kb.get_instance_info(self.scene),
         })
 
@@ -536,11 +671,26 @@ class BaseTestScene(abc.ABC):
     # @abc.abstractmethod
     def add_block_objects(self):
         """_summary_
-        TODO: MAKE SURE the object is properly oriented so that it blocks the test object
-        TODO: Write a utility function to check the object's principal axis
-        SHOULD be randomly placed.
+        TODO!!!: MAKE SURE the object is properly oriented so that it blocks the test object
+        TODO^: Write a utility function to check the object's principal axis
+        SHOULD be randomly placed (not implemented).
+        Move to the table after rotation (not implemented)
         """
-        pass
+        block_obj_id = self.rng.choice(self.super_big_object_asset_id_list)
+        self.block_obj = self.add_object(asset_id=block_obj_id,
+                                position=(0, 0, 0),
+                                quaternion=(1,0,0,0),
+                                is_dynamic=True,
+                                scale=1.25, 
+                                name="block"
+                                )
+
+        aligh_block_objs(self.block_obj)
+
+        self.block_obj.position = (0, 0, self.ref_h - self.block_obj.aabbox[0][2])
+
+        # randomly jitter the object
+        ...
 
     @abc.abstractmethod
     def generate_keyframes(self):
@@ -632,7 +782,7 @@ class BaseTestScene(abc.ABC):
             state = self.get_object_keyframes(obj)
             states.append(state)
         self.test_obj_states["violation"] = states
-        
+    
     def load_violation_scene(self):
         for i, obj in enumerate(self.test_obj):
             self.set_object_keyframes(obj, self.test_obj_states["violation"][i])

@@ -44,6 +44,8 @@ def get_args():
   parser.add_argument("--save_states", type=txt2bool, default=False) # save states
   parser.add_argument("--render_both_results", type=txt2bool, default=True) # render both violation and non-violation results
   
+  # ratio
+  parser.add_argument("--use_indoor_scene", type=float, default=0.5)
   
   FLAGS = parser.parse_args()
 
@@ -168,20 +170,20 @@ def set_camera_orn_constraint(position=(0, 0, 0)):
   return focus_con
 
 def set_camera_keyframes(vals=[-20, 20], frames=[0, 72], interpolation='CUBIC'):
-        path_con = bpy.data.objects['Camera'].constraints['Follow Path']
-        camera = bpy.data.objects['Camera']  
+  path_con = bpy.data.objects['Camera'].constraints['Follow Path']
+  camera = bpy.data.objects['Camera']  
 
-        for val, frame in zip(vals, frames):
-            path_con.offset = val
-            path_con.keyframe_insert("offset", frame=frame)
+  for val, frame in zip(vals, frames):
+      path_con.offset = val
+      path_con.keyframe_insert("offset", frame=frame)
 
-        # --- set keyframe interpolation
-        action = camera.animation_data.action
-        for fcurve in action.fcurves:
-            if fcurve.data_path == "constraints[\"Follow Path\"].offset":
-                for keyframe in fcurve.keyframe_points:
-                    keyframe.interpolation = interpolation
-                    keyframe.easing='EASE_IN_OUT'
+  # --- set keyframe interpolation
+  action = camera.animation_data.action
+  for fcurve in action.fcurves:
+      if fcurve.data_path == "constraints[\"Follow Path\"].offset":
+          for keyframe in fcurve.keyframe_points:
+              keyframe.interpolation = interpolation
+              keyframe.easing='EASE_IN_OUT'
 
 def set_object_disappear(name, frame):
   obj = bpy.data.objects[name]
@@ -199,7 +201,23 @@ def set_object_disappear(name, frame):
           for keyframe in fcurve.keyframe_points:
               keyframe.interpolation = "CONSTANT"
 
-                    
+def set_name(name):
+  """
+    Rename the object to avoid the format *.001
+
+    Params:
+    - camera (bpy.types.Object): The camera object from which visibility is checked.
+    - obj (bpy.types.Object): The object whose vertices' visibility is to be checked.
+
+    Returns:
+    - float: The fraction of vertices of the object that are visible from the camera position.
+    """
+  name_len = len(name)
+
+  for obj_bpy in bpy.data.objects:
+      if obj_bpy.name[:name_len+1] == name+".": 
+          obj_bpy.name = name
+          break           
 
 def getVisibleVertexFraction(obj_name, rng, sample_num=1000):
     """
@@ -217,7 +235,7 @@ def getVisibleVertexFraction(obj_name, rng, sample_num=1000):
     Returns:
     - float: The fraction of vertices of the object that are visible from the camera position.
     """
-    camera = bpy.data.objects['Camera']
+    camera = bpy.data.objects['camera']
     obj = bpy.data.objects[obj_name]
     
     camera_loc = [camera.matrix_world[0][3], camera.matrix_world[1][3], camera.matrix_world[2][3]]
@@ -238,6 +256,72 @@ def getVisibleVertexFraction(obj_name, rng, sample_num=1000):
           num_vert_in_fov += (target.name == obj.name)
 
     return num_vert_in_fov / sample_num
+
+def objInFOV(obj_name, th=20):
+  """
+    Roughly estimates and returns whether the object is inside the camera's FoC.
+
+    This function works by computing the angle between the camera's Z-axis and the 
+    camera-to-object vector. 
+
+    Params:
+    - obj_name (str): the name of the object
+    - th (float): the angle threshold (in degrees)
+
+    Returns:
+    - bool: ...
+  """
+  # get the orientation of the camera's z-axis
+  try:
+    obj = bpy.data.objects[obj_name]
+  except:
+     print(f"The object with name {obj} doesn't exist")
+
+  camera = bpy.data.objects['camera']
+  cam_axis = np.array(camera.matrix_world)[:3, :3] @ np.array([0,0,-1]).T
+  
+  obj_loc = [obj.matrix_world[0][3], obj.matrix_world[1][3], obj.matrix_world[2][3]]
+  cam_loc = [camera.matrix_world[0][3], camera.matrix_world[1][3], camera.matrix_world[2][3]]
+  
+  # get the normalized distance vector
+  dist = np.array(obj_loc) - np.array(cam_loc)
+  dist /= np.linalg.norm(dist)
+
+  # calculate the angle between two vectors
+  if np.allclose(dist.T, cam_axis):
+    angle = 0
+  else:
+    angle = np.arccos(dist.T @ cam_axis)  * 180 / np.pi
+
+  return angle < th
+
+
+def aligh_block_objs(obj):
+
+  """Align the block object
+        Args:
+            obj: kubric object instance
+
+  """
+  x_size = obj.aabbox[1][0] - obj.aabbox[0][0]
+  y_size = obj.aabbox[1][1] - obj.aabbox[0][1]
+  z_size = obj.aabbox[1][1] - obj.aabbox[0][1]
+
+  # find the normal vector of the bbox surface with largest area
+  axis = np.argmin(np.array([x_size, y_size, z_size]))
+
+  axis_rot_mapping = {
+     0: kb.Quaternion(axis=[0, 0, 1], degrees=-90), 
+     1: kb.Quaternion(axis=[1, 0, 0], degrees=0), 
+     2: kb.Quaternion(axis=[1, 0, 0], degrees=90)
+  }
+
+  quaternion_tf = axis_rot_mapping[axis]
+  obj.quaternion = quaternion_tf * obj.quaternion
+
+  ## TODO: rotate around y to set the principal axis
+
+  
 
 
 # def a(sample_num=1000):
