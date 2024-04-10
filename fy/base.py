@@ -40,7 +40,7 @@ print("finished loading all the sources")
 frame_mid = 18
 frame_end = 36
 path_template = [
-    {"euler_xyz": [0,0,0],      "key_frame_val": [-0, 0],      "key_frame_num": [0, frame_end]}, 
+    {"euler_xyz": [0,0,0],      "key_frame_val": [-20, 20],      "key_frame_num": [0, frame_end]}, 
     {"euler_xyz": [-25,0,0],    "key_frame_val": [-20, 20],      "key_frame_num": [0, frame_end]}, # !
     {"euler_xyz": [0,-20,0],    "key_frame_val": [-20, 20],      "key_frame_num": [0, frame_end]}, 
     {"euler_xyz": [0,-40,0],    "key_frame_val": [-15, 20],      "key_frame_num": [0, frame_end]}, 
