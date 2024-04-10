@@ -8,7 +8,6 @@ from tqdm import tqdm
 import bpy 
 from utils import getVisibleVertexFraction, objInFOV
 
-## TODO: 1. valid scene; 2. set when the object disappears
 class PermananceTestScene(BaseTestScene):
     """Test scene for permanance violation.
     Start: Object is visible
@@ -34,7 +33,6 @@ class PermananceTestScene(BaseTestScene):
         _, collisions = self._run_simulate()
         # following the laws of physics
         self.save_non_violation_scene()
-
 
         if self.flags.save_states:
             fname = "non_violation.blend"
@@ -75,7 +73,7 @@ class PermananceTestScene(BaseTestScene):
                                 position=(0, 0, 0),
                                 quaternion=(1,0,0,0),
                                 is_dynamic=True,
-                                scale=1, 
+                                scale=0.5, 
                                 name="small_obj") 
         
         x = np.random.uniform(-0.1, 0.1)

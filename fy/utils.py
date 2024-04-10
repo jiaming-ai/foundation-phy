@@ -344,3 +344,6 @@ def aligh_block_objs(obj):
 #         num_vert_in_fov += (target.name == obj.name)
 #     return num_vert_in_fov / num_vert
 
+def light_loc():
+   direc_light = bpy.data.objects["direc_light"]
+   print(direc_light.location)
