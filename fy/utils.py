@@ -38,15 +38,16 @@ def get_args():
   parser.set_defaults(save_state=False, frame_end=36, frame_rate=12,
                       resolution="512x512")
   
-  parser.add_argument("--debug", type=txt2bool, default=False)
+  parser.add_argument("--debug", type=bool, default=False)
   
-  parser.add_argument("--generate_violation", type=txt2bool, default=True) # generate violation results
-  parser.add_argument("--save_states", type=txt2bool, default=False) # save states
-  parser.add_argument("--render_both_results", type=txt2bool, default=True) # render both violation and non-violation results
+  parser.add_argument("--generate_violation", type=bool, default=True) # generate violation results
+  parser.add_argument("--save_states", type=bool, default=False) # save states
+  parser.add_argument("--render_both_results", type=bool, default=True) # render both violation and non-violation results
   parser.add_argument("--move_camera", type=bool, default=True) # move camera
   
   # ratio
   parser.add_argument("--use_indoor_scene", type=float, default=0.5)
+  parser.add_argument("--task", type=str, default="collision")
   
   FLAGS = parser.parse_args()
 
@@ -241,6 +242,9 @@ def getVisibleVertexFraction(obj_name, rng, sample_num=1000):
     
     camera_loc = [camera.matrix_world[0][3], camera.matrix_world[1][3], camera.matrix_world[2][3]]
     num_vert = len(obj.data.vertices)
+    # https://pypi.org/project/fpsample/
+    # print('----------------------------------------------')
+    # print(obj.data.vertices[0])
     num_vert_in_fov = 0 # number of vertices in the camera's field of view
 
     vert_list = list(obj.data.vertices)

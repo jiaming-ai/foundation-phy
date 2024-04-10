@@ -1,27 +1,36 @@
 
 
 
-from fy.utils import get_args
 import logging
+from fy.utils import get_args
 import kubric as kb
-import imageio
 from fy.utils import write_video
+
 from fy.solidity import SolidityTestScene
 from fy.collision import CollisionTestScene
 from fy.permanance import PermananceTestScene
 
-from etils import epath
 
 def main() -> None:
     FLAGS = get_args()
-    logging.basicConfig(level=FLAGS.logging_level)
+
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[
+            logging.FileHandler("output/log"),
+            logging.StreamHandler()
+        ]
+)
 
     num_per_cls = 50
     max_trails = 1
     test_cls_all = {
-        # "solidity": SolidityTestScene,
+        "solidity": SolidityTestScene,
         # "collision": CollisionTestScene
-        "Permanance": PermananceTestScene 
+        # "Permanance": PermananceTestScene 
     }
     for test_name, test_cls in test_cls_all.items():
         n = 0
@@ -71,4 +80,5 @@ def generate_test_scene(test_class, FLAGS,output_dir) -> None:
 
 if __name__ == "__main__":
     main()
+    
     
