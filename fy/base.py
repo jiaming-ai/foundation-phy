@@ -164,15 +164,12 @@ class BaseTestScene(abc.ABC):
         self.add_block_objects()
         self.add_test_objects()
 
-<<<<<<< HEAD
-        self._run_simulate()
+        # self._run_simulate()
         
-=======
->>>>>>> e10ec5f6b29fd1e517d8aec97b2d4f3684587ea1
         # self.shift_scene(shift)
         if self.flags.move_camera:
             traj_idx = random.randint(0, len(self.camera_path_config)-1)
-            self._set_camera_path(self.cur_camera_traj_idx)
+            self._set_camera_path(self.camera_path_config[traj_idx])
             self.cur_camera_traj_idx = traj_idx
             
         self._set_camera_focus_point([0, 0, self.ref_h]) # auto set the height to be the table height if exists
