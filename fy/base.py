@@ -40,7 +40,7 @@ print("finished loading all the sources")
 frame_mid = 18
 frame_end = 36
 path_template = [
-    {"euler_xyz": [0,0,0],      "key_frame_val": [-20, 20],      "key_frame_num": [0, frame_end]}, 
+    {"euler_xyz": [0,0,0],      "key_frame_val": [-0, 0],      "key_frame_num": [0, frame_end]}, 
     {"euler_xyz": [-25,0,0],    "key_frame_val": [-20, 20],      "key_frame_num": [0, frame_end]}, # !
     {"euler_xyz": [0,-20,0],    "key_frame_val": [-20, 20],      "key_frame_num": [0, frame_end]}, 
     {"euler_xyz": [0,-40,0],    "key_frame_val": [-15, 20],      "key_frame_num": [0, frame_end]}, 
@@ -48,9 +48,9 @@ path_template = [
     {"euler_xyz": [0,20,0],    "key_frame_val": [25, -20],      "key_frame_num": [0, frame_end]}, 
     {"euler_xyz": [0,40,0],    "key_frame_val": [15, -20],      "key_frame_num": [0, frame_end]}, # !
     {"euler_xyz": [0,60,0],    "key_frame_val": [10, -15],      "key_frame_num": [0, frame_end]}, # !
-    {"euler_xyz": [0,0,0],      "key_frame_val": [-20, 5, -20], "key_frame_num": [0, frame_mid, frame_end]}, 
-    {"euler_xyz": [0,0,0],      "key_frame_val": [20, -5, 20], "key_frame_num": [0, frame_mid, frame_end]}, 
-    {"euler_xyz": [0,-90,0],      "key_frame_val": [20, 5,  20], "key_frame_num": [0, frame_mid, frame_end]}, # ? 
+    {"euler_xyz": [0,0,0],      "key_frame_val": [-30, 5, -30], "key_frame_num": [0, frame_mid, frame_end]}, 
+    {"euler_xyz": [0,0,0],      "key_frame_val": [30, -5, 30], "key_frame_num": [0, frame_mid, frame_end]}, 
+    {"euler_xyz": [0,-90,0],      "key_frame_val": [30, 5,  30], "key_frame_num": [0, frame_mid, frame_end]}, # ? 
     # {"euler_xyz": [0,0,0],      "key_frame_val": [-10, 20, -10], "key_frame_num": [0, frame_mid, frame_end]}, 
     # {"euler_xyz": [0,0,0], "key_frame_val": [-20, 20], "key_frame_num": [0, frame_end]}, 
 ]
@@ -280,17 +280,15 @@ class BaseTestScene(abc.ABC):
         """Randomly rotate the scene and table (if has) 
         """
         # Generate a random angle between 0 and 2*pi
-        # angle = np.random.uniform(0, 2*np.pi)
-        angle = np.pi/4
+        angle = np.random.uniform(-np.pi/4, np.pi/4)
         
-        # Create a rotation matrix around the Z-axis
-        rotation_matrix = Rotation.from_euler('z', angle).as_matrix()
-
-        # Convert the rotation matrix to a NumPy array
-        # se3_tf = rotation_matrix.to_matrix().to_4x4()
         se3_tf = Euler((0, 0, angle)).to_matrix().to_4x4()
-        
 
+        ## Linked objects will rotate when their parents rotate
+        ## Rotating linked objects will cause the same obj rotate more than once
+        ## Thus rotation of linked objects will be disabled in this code
+         
+        # get the objects with links
         linked_objs = []
         for obj in bpy.data.objects:
             for c in obj.children:

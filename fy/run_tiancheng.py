@@ -46,9 +46,9 @@ def main() -> None:
     }
     for test_name, test_cls in test_cls_all.items():
         n = 0
-        for i in tqdm(range(max_trails)):
-            print(f"========== Rendering {test_name} test {n} ===========")
-            output_dir = f"output_temp/{test_name}/scene_{n}/"
+        for i in tqdm(range(9, max_trails)):
+            print(f"========== Rendering {test_name} test {i} ===========")
+            output_dir = f"output_temp/{test_name}/scene_{i}/"
             FLAGS.job_dir = output_dir
             FLAGS.camera_path_config = choice(path_template)
 
