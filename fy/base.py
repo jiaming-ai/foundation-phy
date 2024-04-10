@@ -15,7 +15,6 @@ from scipy.spatial.transform import Rotation
 from utils import *
 
 
-
 # --- Some configuration values
 # the region in which to place objects [(min), (max)]
 STATIC_SPAWN_REGION = [(-4, -1, 0), (4, 7, 10)] # for static objects
@@ -135,38 +134,11 @@ class BaseTestScene(abc.ABC):
           
         # load camera path config
         self.camera_path_config = path_template
+        self.camera_path_sample_stats = { i: 0 for i in range(len(self.camera_path_config))}
+        self.cur_camera_traj_idx = None
         
         self.object_asset_id_list = self.gso.all_asset_ids
-        
-        for idx in range(len(self.camera_path_config)):
-            self.camera_path_config[idx]["count"] = 0
 
-        self.cur_camera_traj = None
-
-        # self._setup_scene()
-    
-    # def create_lights(self,rng):
-        
-    #     sun = core.DirectionalLight(name="sun",
-    #                                 color=color.Color.from_name("white"), shadow_softness=0.2,
-    #                                 intensity=0.45, position=(11.6608, -6.62799, 25.8232))
-    #     lamp_back = core.RectAreaLight(name="lamp_back",
-    #                                     color=color.Color.from_name("white"), intensity=50.,
-    #                                     position=(-1.1685, 2.64602, 5.81574))
-    #     lamp_key = core.RectAreaLight(name="lamp_key",
-    #                                     color=color.Color.from_hexint(0xffedd0), intensity=100,
-    #                                     width=0.5, height=0.5, position=(6.44671, -2.90517, 4.2584))
-    #     lamp_fill = core.RectAreaLight(name="lamp_fill",
-    #                                     color=color.Color.from_hexint(0xc2d0ff), intensity=30,
-    #                                     width=0.5, height=0.5, position=(-4.67112, -4.0136, 3.01122))
-    #     lights = [sun, lamp_back, lamp_key, lamp_fill]
-
-    #     # jitter lights
-    #     for light in lights:
-    #         light.position = light.position + rng.rand(3) 
-    #         light.look_at((0, 5, 0))
-        
-    #     return lights
     def _setup_everything(self, shift=[0, 5, 0]):
 
         if random.random() <= self.flags.use_indoor_scene:
@@ -180,7 +152,7 @@ class BaseTestScene(abc.ABC):
         self._random_rotate_scene()
 
         if self.flags.debug:
-            logging.info("Ignore background objects.")
+            logging.info("Ignore background objects in debugging mode.")
         else:
             self.add_background_static_objects(3)
             self.add_background_dynamic_objects(1)
@@ -188,13 +160,11 @@ class BaseTestScene(abc.ABC):
         self.add_block_objects()
         self.add_test_objects()
 
-        
-        
         # self.shift_scene(shift)
         if self.flags.move_camera:
             traj_idx = random.randint(0, len(self.camera_path_config)-1)
-            self.cur_camera_traj = random.choice(self.camera_path_config)
-            self._set_camera_path(self.cur_camera_traj)
+            self._set_camera_path(self.cur_camera_traj_idx)
+            self.cur_camera_traj_idx = traj_idx
             
         self._set_camera_focus_point([0, 0, self.ref_h]) # auto set the height to be the table height if exists
 
@@ -316,12 +286,8 @@ class BaseTestScene(abc.ABC):
                 return 
             
             if self.flags.move_camera:
-                self.cur_camera_traj["count"] += 1
-
-                if self.cur_camera_traj["count"] >= 20:
-                    # remove the camera trajectory index
-                    self.camera_path_config.pop(self.cur_camera_traj)
-                    print(f"Removed camera trajectory {self.cur_camera_traj}")
+                self.camera_path_sample_stats[self.cur_camera_traj_idx] += 1
+                logging.info(f"Re-sampling... Current stats: {self.camera_path_sample_stats}")
 
     def _check_scene(self):
         """Check if the scene is valid. Return Flase if the scene is invalid.
