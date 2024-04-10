@@ -48,9 +48,9 @@ path_template = [
     {"euler_xyz": [0,20,0],    "key_frame_val": [25, -20],      "key_frame_num": [0, frame_end]}, 
     {"euler_xyz": [0,40,0],    "key_frame_val": [15, -20],      "key_frame_num": [0, frame_end]}, # !
     {"euler_xyz": [0,60,0],    "key_frame_val": [10, -15],      "key_frame_num": [0, frame_end]}, # !
-    {"euler_xyz": [0,0,0],      "key_frame_val": [-30, 5, -30], "key_frame_num": [0, frame_mid, frame_end]}, 
-    {"euler_xyz": [0,0,0],      "key_frame_val": [30, -5, 30], "key_frame_num": [0, frame_mid, frame_end]}, 
-    {"euler_xyz": [0,-90,0],      "key_frame_val": [30, 5,  30], "key_frame_num": [0, frame_mid, frame_end]}, # ? 
+    {"euler_xyz": [0,0,0],      "key_frame_val": [-20, 5, -20], "key_frame_num": [0, frame_mid, frame_end]}, 
+    {"euler_xyz": [0,0,0],      "key_frame_val": [20, -5, 20], "key_frame_num": [0, frame_mid, frame_end]}, 
+    {"euler_xyz": [0,-90,0],      "key_frame_val": [20, 5,  20], "key_frame_num": [0, frame_mid, frame_end]}, # ? 
     # {"euler_xyz": [0,0,0],      "key_frame_val": [-10, 20, -10], "key_frame_num": [0, frame_mid, frame_end]}, 
     # {"euler_xyz": [0,0,0], "key_frame_val": [-20, 20], "key_frame_num": [0, frame_end]}, 
 ]
