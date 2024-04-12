@@ -38,12 +38,12 @@ def get_args():
   parser.set_defaults(save_state=False, frame_end=36, frame_rate=12,
                       resolution="512x512")
   
-  parser.add_argument("--debug", type=bool, default=False)
+  parser.add_argument("--debug", type=txt2bool, default=False)
   
-  parser.add_argument("--generate_violation", type=bool, default=True) # generate violation results
-  parser.add_argument("--save_states", type=bool, default=False) # save states
-  parser.add_argument("--render_both_results", type=bool, default=True) # render both violation and non-violation results
-  parser.add_argument("--move_camera", type=bool, default=True) # move camera
+  parser.add_argument("--generate_violation", type=txt2bool, default=True) # generate violation results
+  parser.add_argument("--save_states", type=txt2bool, default=False) # save states
+  parser.add_argument("--render_both_results", type=txt2bool, default=True) # render both violation and non-violation results
+  parser.add_argument("--move_camera", type=txt2bool, default=True) # move camera
   
   # ratio
   parser.add_argument("--use_indoor_scene", type=float, default=0.5)
@@ -325,6 +325,39 @@ def aligh_block_objs(obj):
 
   ## TODO: rotate around y to set the principal axis
 
+
+def align_can_objs(obj):
+  """Align the block object
+        Args:
+            obj: kubric object instance
+
+  """
+  x_size = obj.aabbox[1][0] - obj.aabbox[0][0]
+  y_size = obj.aabbox[1][1] - obj.aabbox[0][1]
+  z_size = obj.aabbox[1][2] - obj.aabbox[0][2]
+
+  # find the principal axis of the can object
+  # axis = np.argmax(np.array([x_size, y_size, z_size]))
+  
+  axis_compare = np.array([np.isclose(y_size, z_size), 
+                  np.isclose(z_size, x_size), 
+                  np.isclose(y_size, x_size)])
+  if axis_compare.max() == 1:
+    # check if two of the bbox sizes are similar
+    axis = np.argmax(np.array(axis_compare))
+  else:
+     # otherwise set the longest axis as the principal axis
+     axis = np.argmax(np.array([x_size, y_size, z_size]))
+
+  axis_rot_mapping = {
+     0: kb.Quaternion(axis=[0, 0, 1], degrees=-90), 
+     1: kb.Quaternion(axis=[1, 0, 0], degrees=0), 
+     2: kb.Quaternion(axis=[1, 0, 0], degrees=90)
+  }
+
+  quaternion_tf = axis_rot_mapping[axis]
+  obj.quaternion = quaternion_tf * obj.quaternion
+
   
 
 
@@ -344,6 +377,13 @@ def aligh_block_objs(obj):
 #         num_vert_in_fov += (target.name == obj.name)
 #     return num_vert_in_fov / num_vert
 
-def light_loc():
-   direc_light = bpy.data.objects["direc_light"]
-   print(direc_light.location)
+def spherical_to_cartesian(r_range=[2.5, 3], theta_range=[10, 30], phi_range=[-30, 30]):
+    r = np.random.uniform(r_range)
+    theta = np.random.uniform(theta_range) * np.pi/180
+    phi = np.random.uniform(np.random.uniform(theta_range)) * np.pi/180
+
+    x = r * np.sin(theta) * np.cos(phi)
+    y = r * np.sin(theta) * np.sin(phi)
+    z = r * np.cos(theta)
+    return [x, y, z]
+
