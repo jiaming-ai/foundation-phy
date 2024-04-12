@@ -25,6 +25,7 @@ class ContinuityTestScene(PermananceTestScene):
 
         super().__init__(FLAGS)
         self.frame_violation_start = -1
+        self.violation_type = np.random.binomial(n=1,p=0.5)
         
     def prepare_scene(self):
         print("preparing scene ...")
@@ -144,7 +145,7 @@ class ContinuityTestScene(PermananceTestScene):
 
         cond_1 = len(frames_violation)  # the first condition
         cond_2 = visibility[0] >= 0.15 and visibility[-1] >= 0.15
-        is_valid = cond_2
+        is_valid = cond_2 and cond_1
 
         if is_valid:
             # set when the test object is set disappeared  
