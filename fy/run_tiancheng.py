@@ -9,11 +9,13 @@ from fy.utils import write_video
 from fy.solidity import SolidityTestScene
 from fy.collision import CollisionTestScene
 from fy.permanance import PermananceTestScene
+from fy.continuity import ContinuityTestScene
+from fy.support import SupportTestScene
 from tqdm import tqdm
 
 from etils import epath
 from random import choice
-
+print(flush=True)
 ## TODO: set frame num from arg
 frame_mid = 18
 frame_end = 36
@@ -37,20 +39,37 @@ def main() -> None:
     FLAGS = get_args()
     logging.basicConfig(level=FLAGS.logging_level)
 
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[
+            logging.FileHandler("output/log"),
+            logging.StreamHandler()
+        ]
+)
+
+
     num_per_cls = 50
-    max_trails = 1000
+    max_trails = 20 if not(FLAGS.debug) else 1
     test_cls_all = {
         # "solidity": SolidityTestScene,
+        "continuity": ContinuityTestScene, 
+        # "Support": SupportTestScene, 
         # "collision": CollisionTestScene
-        "Permanance": PermananceTestScene 
+        # "Permanance": PermananceTestScene 
     }
     for test_name, test_cls in test_cls_all.items():
         n = 0
-        for i in tqdm(range(9, max_trails)):
+        for i in tqdm(range(max_trails)):
             print(f"========== Rendering {test_name} test {i} ===========")
             output_dir = f"output_temp/{test_name}/scene_{i}/"
             FLAGS.job_dir = output_dir
-            FLAGS.camera_path_config = choice(path_template)
+            # FLAGS.camera_path_config = choice(path_template)
+
+            if test_name in ["Support", "continuity"]:
+                FLAGS.move_camera = False
 
             generate_test_scene(test_cls, FLAGS, output_dir)
             n += 1
