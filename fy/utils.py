@@ -358,6 +358,8 @@ def align_can_objs(obj):
   quaternion_tf = axis_rot_mapping[axis]
   obj.quaternion = quaternion_tf * obj.quaternion
 
+  return axis
+
   
 
 
@@ -378,12 +380,13 @@ def align_can_objs(obj):
 #     return num_vert_in_fov / num_vert
 
 def spherical_to_cartesian(r_range=[2.5, 3], theta_range=[10, 30], phi_range=[-30, 30]):
-    r = np.random.uniform(r_range)
-    theta = np.random.uniform(theta_range) * np.pi/180
-    phi = np.random.uniform(np.random.uniform(theta_range)) * np.pi/180
+    r = np.random.uniform(r_range[0], r_range[1])
+    theta = np.random.uniform(theta_range[0], theta_range[1]) * np.pi/180
+    phi = np.random.uniform(np.random.uniform(phi_range[0], phi_range[1])) * np.pi/180
 
     x = r * np.sin(theta) * np.cos(phi)
     y = r * np.sin(theta) * np.sin(phi)
     z = r * np.cos(theta)
+
     return [x, y, z]
 

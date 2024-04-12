@@ -26,16 +26,23 @@ class ContinuityTestScene(PermananceTestScene):
         super().__init__(FLAGS)
         self.frame_violation_start = -1
         self.violation_type = np.random.binomial(n=1,p=0.5)
-        
+        self.gravity = (0, 0, -4.9)
+
+        if not(self.violation_type):
+            self.default_camera_pos = spherical_to_cartesian()
+            self.camera_look_at = (0, 0, self.ref_h)
+            self.flags.move_camera = False 
+        else:
+            self.flags.move_camera = True
     def prepare_scene(self):
         print("preparing scene ...")
         super().prepare_scene()
-        
-        # remove block object
-        self.block_obj.position = (0, 0, -10)
 
-        self.scene.camera.position = spherical_to_cartesian()
-        self.scene.camera.look_at = (0, 0, self.ref_h)
+        if not(self.violation_type):
+            # remove block object
+            self.block_obj.position = (0, 0, -10)
+ 
+
 
     def generate_keyframes(self):
         """Generate keyframes for the test objects, for both violation and non-violation states
@@ -54,7 +61,8 @@ class ContinuityTestScene(PermananceTestScene):
             # linear interpolation
             logging.info("Violation start at '%d' ",
                         self.frame_violation_start)
-            if np.random.binomial(n=1,p=0.5):
+            if self.violation_type:
+                # object disappear
                 for frame in range(int(self.frame_violation_start), self.scene.frame_end+1):
                     # set negative z position 
                     pos = obj.keyframes["position"][frame].copy()
@@ -62,11 +70,11 @@ class ContinuityTestScene(PermananceTestScene):
                     obj.position = pos
                     obj.keyframe_insert("position", frame)
             else:
+                # object teletransport
                 pos = obj.keyframes["position"][self.frame_violation_start].copy()
                 pos[0] += np.random.uniform(0.2, 0.4)
                 obj.position = pos
                 obj.keyframe_insert("position", self.frame_violation_start)
-                self._run_simulate(frame_start=self.frame_violation_start)
             
             self.save_violation_scene()
             
@@ -82,26 +90,42 @@ class ContinuityTestScene(PermananceTestScene):
         Returns:
             _type_: _description_
         """
-        table_x_range = self.table.aabbox[0][0]
-        vx = self.rng.uniform(1, 1.5) # initial velocitry
-        px = self.rng.uniform(table_x_range-0.5, table_x_range) # initial position
-        pz = self.rng.uniform(0.2, 0.4) + self.h
         # -- add small object
         print("adding the small object")
-        self.block_obj.position = (0, -0.1, self.block_obj.position[2])
+
+        # relocate the block obj
+        self.block_obj.position = (0.15, -0.1, self.block_obj.position[2])
+        
+        # initialize the obj. Note the the initial position should be (0,0,0) 
+        # so that the dist between its CoM and the table surface can be calculated
         small_obj_id = [name for name, spec in shapenet_assets._assets.items()
                 if spec["metadata"]["category"] == "can"]
         small_obj_id = self.rng.choice(small_obj_id)
         small_obj = self.add_object(asset_id=small_obj_id,
-                                position=(px, 0.15*0, pz),
-                                velocity=(vx, 0, 0),
+                                position=(0, 0, 0),
+                                velocity=(0, 0, 0),
                                 quaternion=kb.Quaternion(axis=[0, 0, 1], degrees=0),
                                 is_dynamic=True,
                                 scale=0.15, 
                                 name="small_obj") 
         
+        self.test_obj_z_orn = align_can_objs(small_obj)
+        
+
+        # set the position of the can to avoid potential collision 
+        # of the block object
+        table_x_range = self.table.aabbox[0][0]
+        block_y_range = self.block_obj.aabbox[1][1]
+        vx = self.rng.uniform(0.8, 1.0) # initial velocitry
+        px = self.rng.uniform(0, 0.05) + small_obj.aabbox[1][2] + table_x_range # initial position
+        py = self.rng.uniform(0.1, 0.15) + block_y_range
+        pz = self.rng.uniform(0.0, 0.01) + self.ref_h - small_obj.aabbox[0][2]
+        small_obj.position = (px, py, pz)
+        small_obj.velocity = (vx, 0, 0)
+        small_obj.friction = 0.1
+
+
         # align the can object
-        align_can_objs(small_obj)
 
         # small_obj.position = (-0.8, 0.15, self.ref_h+0.2)
         # for _ in range(10):
@@ -143,14 +167,62 @@ class ContinuityTestScene(PermananceTestScene):
         idx = np.where(np.logical_and(visibility <= 0.1, in_view))[0]     
         frames_violation = frame_idx[idx]
 
-        cond_1 = len(frames_violation)  # the first condition
-        cond_2 = visibility[0] >= 0.15 and visibility[-1] >= 0.15
-        is_valid = cond_2 and cond_1
+        if self.violation_type:
+            cond_1 = len(frames_violation)  # the first condition
+            cond_2 = visibility[0] >= 0.15 \
+                    and visibility[5] >= 0.15 \
+                    and visibility[-6] >= 0.15
+            is_valid = cond_2 and cond_1
+        else:
+            is_valid = in_view[0] and in_view[-5] >= 0.15
 
         if is_valid:
             # set when the test object is set disappeared  
-            self.frame_violation_start =  int(0.1*frames_violation[0]+0.9*frames_violation[-1])
+            self.frame_violation_start =  int(self.rng.uniform(10, 20))
         else:
             print("scene invalid!")
 
         return is_valid
+    
+    def _run_simulate(self, save_state=False):
+        self.block_obj.static = True
+        ret = super()._run_simulate(save_state)
+        # reduce the angular velocity at each frame
+        obj = self.test_obj[0] # work for only one test obj
+        
+        xy_axis = [0,1,2]
+        # xy_axis.remove(self.test_obj_z_orn) 
+
+        # remove the test object's unexpected rotation
+
+        obj_pos0 = obj.keyframes["position"][0].copy()
+        for frame in range(self.scene.frame_start, self.scene.frame_end+1):
+            # set xy velocity to 0
+            q = obj.keyframes["quaternion"][frame].copy()
+            q = np.array(q)
+            q[1] = 0
+            q[3] = 0
+            obj.quaternion = q
+            obj.keyframe_insert("quaternion", frame)
+
+            pos = obj.keyframes["position"][frame].copy()
+            pos[1] = obj_pos0[1] 
+            obj.position = pos
+            obj.keyframe_insert("position", frame)
+
+            vel = obj.keyframes["velocity"][frame].copy()
+            vel[1] = 0
+            obj.velocity = vel
+            obj.keyframe_insert("velocity", frame)
+
+            # block.velocity = [0,0,0]
+            # block.keyframe_insert("velocity", frame)
+
+            # block.angular_velocity = [0,0,0]
+            # block.keyframe_insert("angular_velocity", frame)
+
+            # block.position = block_pos0
+            # block.keyframe_insert("position", frame)
+
+
+    #     return ret

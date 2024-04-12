@@ -39,14 +39,14 @@ print("finished loading all the sources")
 frame_mid = 18
 frame_end = 36
 path_template = [
-    {"euler_xyz": [0,0,0],      "key_frame_val": [-20, 20],      "key_frame_num": [0, frame_end]}, 
-    {"euler_xyz": [-25,0,0],    "key_frame_val": [-20, 20],      "key_frame_num": [0, frame_end]}, # !
-    {"euler_xyz": [0,-20,0],    "key_frame_val": [-20, 20],      "key_frame_num": [0, frame_end]}, 
-    {"euler_xyz": [0,-40,0],    "key_frame_val": [-15, 20],      "key_frame_num": [0, frame_end]}, 
-    {"euler_xyz": [0,-60,0],    "key_frame_val": [-10, 15],      "key_frame_num": [0, frame_end]}, # !
-    {"euler_xyz": [0,20,0],    "key_frame_val": [25, -20],      "key_frame_num": [0, frame_end]}, 
-    {"euler_xyz": [0,40,0],    "key_frame_val": [15, -20],      "key_frame_num": [0, frame_end]}, # !
-    {"euler_xyz": [0,60,0],    "key_frame_val": [10, -15],      "key_frame_num": [0, frame_end]}, # !
+    {"euler_xyz": [0,0,0],      "key_frame_val": [-25, 25],      "key_frame_num": [0, frame_end]}, 
+    {"euler_xyz": [-25,0,0],    "key_frame_val": [-25, 25],      "key_frame_num": [0, frame_end]}, # !
+    {"euler_xyz": [0,-20,0],    "key_frame_val": [-25, 25],      "key_frame_num": [0, frame_end]}, 
+    {"euler_xyz": [0,-40,0],    "key_frame_val": [-25, 25],      "key_frame_num": [0, frame_end]}, 
+    {"euler_xyz": [0,-60,0],    "key_frame_val": [-25, 25],      "key_frame_num": [0, frame_end]}, # !
+    {"euler_xyz": [0,20,0],    "key_frame_val": [25, -25],      "key_frame_num": [0, frame_end]}, 
+    {"euler_xyz": [0,40,0],    "key_frame_val": [25, -25],      "key_frame_num": [0, frame_end]}, # !
+    {"euler_xyz": [0,60,0],    "key_frame_val": [25, -25],      "key_frame_num": [0, frame_end]}, # !
     {"euler_xyz": [0,0,0],      "key_frame_val": [-20, 5, -20], "key_frame_num": [0, frame_mid, frame_end]}, 
     {"euler_xyz": [0,0,0],      "key_frame_val": [20, -5, 20], "key_frame_num": [0, frame_mid, frame_end]}, 
     {"euler_xyz": [0,-90,0],      "key_frame_val": [20, 5,  20], "key_frame_num": [0, frame_mid, frame_end]}, # ? 
@@ -67,6 +67,7 @@ class BaseTestScene(abc.ABC):
         self.output_dir = None
         self.scratch_dir = None
         self.background_hdri = None
+        self.gravity = (0, 0, -9.81)
 
         self.block_obj = None
         self.ref_h = 0
@@ -82,6 +83,7 @@ class BaseTestScene(abc.ABC):
 
         self.test_obj_states = {"violation": None, "non_violation": None}
         self.test_obj = None
+        self.default_camera_pos = [0, 0, 1]
         self.camera_look_at = [0,0,0]
 
         # load asset sources
@@ -155,6 +157,7 @@ class BaseTestScene(abc.ABC):
             self.ref_h = 0
 
         self._random_rotate_scene()
+        self.scene.gravity = self.gravity
 
         if self.flags.debug:
             logging.info("Ignore background objects in debugging mode.")
@@ -179,7 +182,7 @@ class BaseTestScene(abc.ABC):
         Set the camera's circular path
         '''
 
-        center = [0, 0, 1.7] # TODO add this to config: path_config["center"]
+        center = [0, 0, self.ref_h + 0.5] # TODO add this to config: path_config["center"]
         euler_xyz_deg = path_config["euler_xyz"]
         key_frame_idx = path_config["key_frame_num"]
         key_frame_val = path_config["key_frame_val"]
@@ -284,7 +287,7 @@ class BaseTestScene(abc.ABC):
             if self._check_scene():
                 self.generate_keyframes()
                 return 
-            # self.renderer.save_state(f"temp_scene/invalid_{self.i}.blend")
+            self.renderer.save_state(f"temp_scene/invalid_{self.i}.blend")
             self.i += 1
             
             if self.flags.move_camera:
@@ -395,6 +398,9 @@ class BaseTestScene(abc.ABC):
         blender_scene = rng.choice(self.scenes)
         self.load_blender_scene(blender_scene)
         self._add_camera(self.scene)
+
+        self.scene.camera.position = self.default_camera_pos
+        self.scene.camera.look_at(self.camera_look_at)
         
 
         # add floor to the scene
@@ -565,7 +571,7 @@ class BaseTestScene(abc.ABC):
             bpy.data.objects.remove(obj_del, do_unlink = True)
             logging.info(f"The existing object '{name}' will be replaced")
 
-    def _run_simulate(self, save_state=False):
+    def _run_simulate(self, save_state=False, frame_start=0):
         """Run simulation and write to keyframes of objects
 
         Args:
@@ -574,7 +580,7 @@ class BaseTestScene(abc.ABC):
         Returns:
             _type_: _description_
         """
-        animation, collisions = self.simulator.run(frame_start=0,
+        animation, collisions = self.simulator.run(frame_start=frame_start,
                                       frame_end=self.scene.frame_end+1)
         
         if save_state:
@@ -639,7 +645,8 @@ class BaseTestScene(abc.ABC):
                                        scale: float = 2,
                                        x_range: tuple = (-3, 3), 
                                        y_range: tuple = (0.5, 1.5), 
-                                       z_range: tuple = (3, 5)):
+                                       z_range: tuple = (3, 5), 
+                                       set_rand_vel=False):
         """Add some other dynamic objects as background objects
         
         """
@@ -652,7 +659,7 @@ class BaseTestScene(abc.ABC):
                 scale = (u[1] - u[0]) / 2
                 rand_pos[i] = rand_pos[i] * scale + mean 
 
-            rand_vel = self.rng.uniform(-3, 3, 3)
+            rand_vel = self.rng.uniform(-3, 3, 3) if set_rand_vel else [0, 0, 0]
             sign = -1 if rand_pos[0] < 0 else 1
             rand_vel[0] = -sign * abs(rand_vel[0]) # make the object move towards the center
             self.add_object(position=rand_pos,
