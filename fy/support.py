@@ -28,6 +28,10 @@ class SupportTestScene(BaseTestScene):
         self.initial_dist_to_table = 0
         self.violation_type = np.random.binomial(n=1,p=0.5)
         self.gravity = [0, 0, -1.5]
+        self.flags.move_camera = False
+
+        self.default_camera_pos = spherical_to_cartesian()
+        
         
         
     def prepare_scene(self):
@@ -35,8 +39,7 @@ class SupportTestScene(BaseTestScene):
         super().prepare_scene()
         self.scene.gravity = self.gravity
 
-        self.scene.camera.position = spherical_to_cartesian()
-        self.scene.camera.look_at = (0, 0, self.ref_h)
+        self.renderer.save_state(f"temp_scene/cam.blend")
 
     def generate_keyframes(self):
         if self.violation_type:
@@ -69,8 +72,7 @@ class SupportTestScene(BaseTestScene):
             # get the violation frame
             for i in range(self.scene.frame_end+1):
                 pos_z = obj.keyframes["position"][i][2]
-                print(pos_z, self.ref_h)
-                if pos_z - self.ref_h <= 0.1:
+                if pos_z - self.ref_h <= 0.2:
                     self.frame_violation_start = i
                     break
 
@@ -79,7 +81,6 @@ class SupportTestScene(BaseTestScene):
 
             for frame in range(int(self.frame_violation_start), self.scene.frame_end+1):
                 obj.position = obj.keyframes["position"][self.frame_violation_start]
-                print("frame: ", frame, " pos: ",  obj.keyframes["position"][self.frame_violation_start])
                 obj.keyframe_insert("position", frame)
                 
 
@@ -165,7 +166,7 @@ class SupportTestScene(BaseTestScene):
                                 position=(0, 0, 0),
                                 quaternion=(1,0,0,0),
                                 is_dynamic=True,
-                                scale=0.5, 
+                                scale=1, 
                                 name="small_obj")
         
         # align the can object
@@ -177,7 +178,13 @@ class SupportTestScene(BaseTestScene):
         table_y_range = (self.table.aabbox[0][1], self.table.aabbox[1][1])
 
         if self.violation_type:
-            small_obj.position = (0, self.table.aabbox[0][1]-0.5, z)
+            # set the x_pos of the test object (either side of the table)
+            x_disp_pos = self.rng.uniform(0, 0.05) + self.table.aabbox[1][0]
+            x_disp_neg = self.rng.uniform(-0.05, 0) + self.table.aabbox[0][0]
+            x_disp = self.rng.choice([x_disp_pos, x_disp_neg])
+            x_pos = x_disp
+            small_obj.position = (x_pos, 0, z)
+            self.camera_look_at = (x_pos, 0, self.ref_h)
         else:
             small_obj.position = (0, 0, z)
         # for _ in range(10):
@@ -185,8 +192,9 @@ class SupportTestScene(BaseTestScene):
         #     print(small_obj.aabbox)
         self.test_obj = [small_obj]
 
-
-        self.add_background_dynamic_objects(2, 
+        if self._check_scene():
+            self.add_background_dynamic_objects(5, 
+                                            scale=0.8,
                                             x_range=table_x_range, 
                                             y_range=table_y_range,
                                             z_range=(z, z),
@@ -196,5 +204,58 @@ class SupportTestScene(BaseTestScene):
 
         
         return small_obj
+    
+
+    def _check_scene(self):
+        # frame_end = self.flags.frame_end
+        # frame_start = 5
+
+        # visibility = np.zeros(2) * 0.0  
+        # in_view = np.zeros(2) * 0.0 
+
+        # # Check visibility of the test obj at each frame
+        # print("Checking scene...")
+        # for i, frame in enumerate([frame_start, frame_end]):
+        #     bpy.context.scene.frame_set(frame)
+        #     vis = getVisibleVertexFraction(self.table_name, self.rng)
+        #     visibility[i] = vis  
+
+        #     # Check if the object is in FoV
+        #     # in_view[i] = objInFOV("small_obj")
+
+        # # return (visibility[0] >= 0.15 
+        # #     and visibility[-1] >= 0.15
+        # #     # and in_view[0]
+        # #     # and in_view[1]
+        # #     )
+
+        test_frame = 10
+        obj = self.test_obj[0]
+        obj_pos0 = obj.position 
+        obj_h  = obj.aabbox[1][2] - obj.aabbox[0][2]
+        test_z = [obj_pos0[2], self.ref_h+obj_h, obj_h]
+        visibility = np.zeros(len(test_z)) * 0.0
+        
+        for i, pos_z in enumerate(test_z):
+            # set the object to the test position
+            pos = obj_pos0.copy()
+            pos[2] = pos_z
+            obj.position = pos
+            obj.keyframe_insert("position", test_frame)
+            
+            # go to the test frame in blender and apply ray tracing
+            bpy.context.scene.frame_set(test_frame)
+            vis = getVisibleVertexFraction("small_obj", self.rng)
+            visibility[i] = (vis >= 0.5)
+
+        if self.violation_type:
+            visibility[-1] = 1
+        obj.position = obj_pos0
+        obj.keyframe_insert("position", test_frame)
+
+        return visibility.min()
+
+        
+
 
     

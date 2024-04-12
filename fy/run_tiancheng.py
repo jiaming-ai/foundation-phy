@@ -12,6 +12,7 @@ from fy.permanance import PermananceTestScene
 from fy.continuity import ContinuityTestScene
 from fy.support import SupportTestScene
 from tqdm import tqdm
+import colorlog
 
 from etils import epath
 from random import choice
@@ -46,17 +47,33 @@ def main() -> None:
         format="%(asctime)s [%(levelname)s] %(message)s",
         handlers=[
             logging.FileHandler("output/log"),
-            logging.StreamHandler()
+            # logging.StreamHandler()
         ]
-)
+    )
 
 
+    handler = colorlog.StreamHandler()
+    handler.setFormatter(colorlog.ColoredFormatter(
+    "%(log_color)s %(asctime)s %(levelname)s:%(message)s",
+    log_colors={
+        'DEBUG': 'white',
+        'INFO': 'green',
+        'WARNING': 'yellow',
+        'ERROR': 'red',
+        'CRITICAL': 'bold_red',
+    }
+    ))
+
+    logger = logging.getLogger()
+    logger.addHandler(handler)
+
+    
     num_per_cls = 50
     max_trails = 20 if not(FLAGS.debug) else 10
     test_cls_all = {
         # "solidity": SolidityTestScene,
-        # "continuity": ContinuityTestScene, 
         "Support": SupportTestScene, 
+        "continuity": ContinuityTestScene, 
         # "collision": CollisionTestScene
         # "Permanance": PermananceTestScene 
     }

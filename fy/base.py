@@ -69,6 +69,7 @@ class BaseTestScene(abc.ABC):
         self.background_hdri = None
         self.gravity = (0, 0, -9.81)
 
+        self.dynamic_objs = []
         self.block_obj = None
         self.ref_h = 0
         self.add_table = False
@@ -174,8 +175,11 @@ class BaseTestScene(abc.ABC):
             traj_idx = random.randint(0, len(self.camera_path_config)-1)
             self._set_camera_path(self.camera_path_config[traj_idx])
             self.cur_camera_traj_idx = traj_idx
+            self._set_camera_focus_point([0, 0, self.ref_h]) # auto set the height to be the table height if exists
+        else:
+            self.scene.camera.position = self.default_camera_pos
+            self.scene.camera.look_at(self.camera_look_at)
             
-        self._set_camera_focus_point([0, 0, self.ref_h]) # auto set the height to be the table height if exists
 
     def _set_camera_path(self, path_config):
         '''
@@ -283,10 +287,12 @@ class BaseTestScene(abc.ABC):
         """Generate a new random test scene"""
         self.i = 0
         while True:
+            self.dynamic_objs = []
             self._setup_everything()
             if self._check_scene():
                 self.generate_keyframes()
                 return 
+            logging.warning("Current scene is invalid. Regenerating ")
             self.renderer.save_state(f"temp_scene/invalid_{self.i}.blend")
             self.i += 1
             
@@ -401,7 +407,6 @@ class BaseTestScene(abc.ABC):
 
         self.scene.camera.position = self.default_camera_pos
         self.scene.camera.look_at(self.camera_look_at)
-        
 
         # add floor to the scene
         logging.info("Adding floor to the scene")
@@ -437,6 +442,7 @@ class BaseTestScene(abc.ABC):
         self.rng = rng
         self.output_dir = output_dir
         self.scratch_dir = scratch_dir
+        self.camera_look_at = [0, 0, self.ref_h]
 
         ################################
         # add random directional lighting
@@ -614,8 +620,9 @@ class BaseTestScene(abc.ABC):
         kb.write_json(filename=self.output_dir / "metadata.json", data={
             "flags": vars(self.flags),
             "metadata": kb.get_scene_metadata(self.scene),
-            # "camera": kb.get_camera_info(self.scene.camera),
+            "camera": kb.get_camera_info(self.scene.camera),
             "instances": kb.get_instance_info(self.scene),
+            "table_id": self.table_id
         })
 
     def change_output_dir(self, new_output_dir):
@@ -662,10 +669,11 @@ class BaseTestScene(abc.ABC):
             rand_vel = self.rng.uniform(-3, 3, 3) if set_rand_vel else [0, 0, 0]
             sign = -1 if rand_pos[0] < 0 else 1
             rand_vel[0] = -sign * abs(rand_vel[0]) # make the object move towards the center
-            self.add_object(position=rand_pos,
+            obj = self.add_object(position=rand_pos,
                             velocity=rand_vel,
                             is_dynamic=True,
                             scale=scale)
+            self.dynamic_objs.append(obj)
 
     @abc.abstractmethod
     def add_test_objects(self):

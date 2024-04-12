@@ -379,10 +379,11 @@ def align_can_objs(obj):
 #         num_vert_in_fov += (target.name == obj.name)
 #     return num_vert_in_fov / num_vert
 
-def spherical_to_cartesian(r_range=[2.5, 3], theta_range=[10, 30], phi_range=[-30, 30]):
+def spherical_to_cartesian(r_range=[3, 4], theta_range=[60, 80], phi_range=[-30, 30]):
     r = np.random.uniform(r_range[0], r_range[1])
     theta = np.random.uniform(theta_range[0], theta_range[1]) * np.pi/180
     phi = np.random.uniform(np.random.uniform(phi_range[0], phi_range[1])) * np.pi/180
+    phi -= np.pi / 2
 
     x = r * np.sin(theta) * np.cos(phi)
     y = r * np.sin(theta) * np.sin(phi)
