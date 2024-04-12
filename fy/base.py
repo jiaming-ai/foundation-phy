@@ -656,8 +656,8 @@ class BaseTestScene(abc.ABC):
             
             for i, u in enumerate([x_range, y_range, z_range]):
                 mean = (u[1] + u[0]) / 2
-                scale = (u[1] - u[0]) / 2
-                rand_pos[i] = rand_pos[i] * scale + mean 
+                std = (u[1] - u[0]) / 2
+                rand_pos[i] = rand_pos[i] * std + mean 
 
             rand_vel = self.rng.uniform(-3, 3, 3) if set_rand_vel else [0, 0, 0]
             sign = -1 if rand_pos[0] < 0 else 1
