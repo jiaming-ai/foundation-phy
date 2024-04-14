@@ -26,7 +26,7 @@ class SupportTestScene(BaseTestScene):
         super().__init__(FLAGS)
         self.frame_violation_start = 10
         self.initial_dist_to_table = 0
-        self.violation_type = np.random.binomial(n=1,p=0.5)
+        self.violation_type = 0#np.random.binomial(n=1,p=0.5)
         self.gravity = [0, 0, -1.5]
         self.flags.move_camera = False
 
@@ -66,15 +66,17 @@ class SupportTestScene(BaseTestScene):
     
         for obj in self.test_obj:
             # linear interpolation
-            self.frame_violation_start = int(self.flags.frame_rate * \
-                                                  np.sqrt(2/9.8 * self.initial_dist_to_table)) 
+            self.frame_violation_start = 10# int(self.flags.frame_rate * \
+                                                #   np.sqrt(2/9.8 * self.initial_dist_to_table)) 
 
             # get the violation frame
             for i in range(self.scene.frame_end+1):
                 pos_z = obj.keyframes["position"][i][2]
+                logging.error((i, pos_z, self.ref_h, pos_z - self.ref_h))
                 if pos_z - self.ref_h <= 0.2:
                     self.frame_violation_start = i
                     break
+                
 
             logging.info("Violation start at '%d' ",
                         self.frame_violation_start)
@@ -125,7 +127,7 @@ class SupportTestScene(BaseTestScene):
         self.recover_table()
 
         for i, obj in enumerate(self.dynamic_objs):
-                self.set_object_keyframes(obj, bg_states[i])
+            self.set_object_keyframes(obj, bg_states[i])
 
         # self._run_simulate()
         # self.load_violation_scene()
@@ -251,7 +253,7 @@ class SupportTestScene(BaseTestScene):
         if self.violation_type:
             visibility[-1] = 1
         obj.position = obj_pos0
-        obj.keyframe_insert("position", test_frame)
+        obj.keyframe_insert("position", 0)
 
         return visibility.min()
 
