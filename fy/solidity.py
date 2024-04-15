@@ -11,6 +11,7 @@ class SolidityTestScene(BaseTestScene):
     Normal result: the trajectory of OBJ1 and OBJ2 should follow the laws of physics.
     Violation: OBJ1 and OBJ2 pass through each other without collision.
 
+    CAMERA not moving
     Args:
         BaseTestScene (_type_): _description_
     """
@@ -31,7 +32,7 @@ class SolidityTestScene(BaseTestScene):
         self.scene.gravity = self.gravity
 
         # look at a fixed height
-        self.scene.camera.position = (0, -5, 1.7)
+        # self.scene.camera.position = (0, -5, 1.7)
         self.scene.camera.look_at([0, 0, self.collision_height])
 
 

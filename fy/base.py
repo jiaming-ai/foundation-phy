@@ -150,7 +150,13 @@ class BaseTestScene(abc.ABC):
 
     def _setup_everything(self, shift=[0, 5, 0]):
 
-        if random.random() <= self.flags.use_indoor_scene:
+        if self.flags.use_indoor_only:
+            use_indoor = True
+        else:
+            rnd_n = random.random()
+            use_indoor = rnd_n < 0.5
+        
+        if use_indoor:
             self.add_table = True
             self._setup_indoor_scene()
         else:
@@ -180,7 +186,29 @@ class BaseTestScene(abc.ABC):
         else:
             self.scene.camera.position = self.default_camera_pos
             self.scene.camera.look_at(self.camera_look_at)
-            
+
+    # def _check_scene_visible(self):
+    #     frame_end = self.flags.frame_end
+
+    #     frame_idx = np.arange(1, frame_end+1)
+    #     visibility_obj = np.zeros_like(frame_idx) * 0.0  
+    #     visibility_table = np.ones_like(frame_idx) * 1.0 
+    #     in_view = np.zeros_like(frame_idx) * 0.0  
+    #     obj_on_table = np.ones_like(frame_idx) * 1.0  
+
+    #     # Check visibility of the test obj at each frame
+    #     print("Checking scene...")
+    #     obj = self.test_obj[0] # work for only one test obj
+    #     for i, frame in enumerate(tqdm(range(self.flags.frame_start, self.flags.frame_end))):
+    #         bpy.context.scene.frame_set(frame)
+    #         vis_obj = getVisibleVertexFraction("small_obj", self.rng)
+    #         vis_table = isPointVisible([0, 0, self.ref_h], [self.table_name, self.block_name, "small_obj"])
+    #         visibility_obj[i] = vis_obj  
+    #         visibility_table[i] = vis_table
+    #         obj_on_table[i] = obj.keyframes["position"][frame][2] > self.ref_h-0.05
+
+    #         # Check if the object is in FoV
+    #         in_view[i] = objInFOV("small_obj")           
 
     def _set_camera_path(self, path_config):
         '''
@@ -309,8 +337,8 @@ class BaseTestScene(abc.ABC):
         Returns:
             _type_: _description_
         """
+        return self._check_scene_visible()
         
-        return True 
     
     def __enter__(self):
         return self

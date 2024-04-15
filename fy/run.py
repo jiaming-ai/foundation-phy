@@ -9,6 +9,8 @@ from fy.utils import write_video
 from fy.solidity import SolidityTestScene
 from fy.collision import CollisionTestScene
 from fy.permanance import PermananceTestScene
+from fy.continuity import ContinuityTestScene
+from fy.support import SupportTestScene
 
 
 def main() -> None:
@@ -28,9 +30,12 @@ def main() -> None:
     num_per_cls = 50
     max_trails = 1
     test_cls_all = {
-        "solidity": SolidityTestScene,
-        # "collision": CollisionTestScene
-        # "Permanance": PermananceTestScene 
+        # "solidity": SolidityTestScene,
+        # "collision": CollisionTestScene,
+        "Permanance": PermananceTestScene ,
+        "Continuity": ContinuityTestScene,
+        "Support": SupportTestScene,
+
     }
     for test_name, test_cls in test_cls_all.items():
         n = 0
@@ -50,7 +55,6 @@ def main() -> None:
                     raise
                 continue
 
-
 def generate_test_scene(test_class, FLAGS,output_dir) -> None:
 
     with test_class(FLAGS) as test_scene:
@@ -63,7 +67,8 @@ def generate_test_scene(test_class, FLAGS,output_dir) -> None:
         test_scene.change_output_dir( output_dir + "violation" )
 
         # igore rendering if debug is on
-        if not FLAGS.debug:
+        if FLAGS.render_video:
+            logging.info("Rendering the violation video")
             test_scene.render(save_to_file=True)
             write_video(output_dir + "violation/", output_dir + "violation.mp4")
 
@@ -71,10 +76,10 @@ def generate_test_scene(test_class, FLAGS,output_dir) -> None:
         logging.info("Loading the non-violation state")
         test_scene.load_non_violation_scene()
         test_scene.change_output_dir( output_dir + "non_violation" )
-        logging.info("Rendering the non-violation state")
 
         # igore rendering if debug is on
-        if not FLAGS.debug:
+        if FLAGS.render_video:
+            logging.info("Rendering the non-violation video")
             test_scene.render(save_to_file=True)
             write_video(output_dir + "non_violation/", output_dir + "non_violation.mp4")
 

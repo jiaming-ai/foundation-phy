@@ -30,6 +30,13 @@ class CollisionTestScene(BaseTestScene):
         self.scene.camera.position = (0, -5, 1.7)
         self.scene.camera.look_at([0, 0, self.collision_height])
         
+    def prepare_scene(self):
+        super().prepare_scene()
+        self.scene.gravity = self.gravity
+
+        # look at a fixed height
+        self.scene.camera.position = (0, -5, 1.7)
+        self.scene.camera.look_at([0, 0, self.collision_height])
 
     def generate_keyframes(self):
         """Generate keyframes for the objects, for both violation and non-violation states

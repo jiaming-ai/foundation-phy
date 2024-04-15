@@ -28,6 +28,9 @@ class ContinuityTestScene(PermananceTestScene):
 
         super().__init__(FLAGS)
         self.frame_violation_start = -1
+        # two cases:
+        # 1. object disappears
+        # 2. object teleports
         self.violation_type = np.random.binomial(n=1,p=0.5)
         self.gravity = (0, 0, -4.9)
 
@@ -44,7 +47,6 @@ class ContinuityTestScene(PermananceTestScene):
         if not(self.violation_type):
             # remove block object
             self.block_obj.position = (0, 0, -10)
- 
 
 
     def generate_keyframes(self):
@@ -158,6 +160,9 @@ class ContinuityTestScene(PermananceTestScene):
         self.save_non_violation_scene()
         return small_obj
 
+   
+            
+            
     def _check_scene(self):
         """ Check whether the scene is valid. 
         A valid...

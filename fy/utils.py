@@ -38,22 +38,23 @@ def get_args():
   parser.set_defaults(save_state=False, frame_end=36, frame_rate=12,
                       resolution="512x512")
   
-  parser.add_argument("--debug", type=txt2bool, default=False)
+  parser.add_argument("--debug", default=False,action="store_true")
   
   parser.add_argument("--generate_violation", type=txt2bool, default=True) # generate violation results
-  parser.add_argument("--save_states", type=txt2bool, default=False) # save states
-  parser.add_argument("--render_both_results", type=txt2bool, default=True) # render both violation and non-violation results
-  parser.add_argument("--move_camera", type=txt2bool, default=True) # move camera
+  # parser.add_argument("--render_both_results", type=txt2bool, default=True) # render both violation and non-violation results
+
+  parser.add_argument("--move_camera", type=bool, default=True) # move camera
+  parser.add_argument("--use_indoor_only", type=bool, default=True)
   
-  # ratio
-  parser.add_argument("--use_indoor_scene", type=float, default=0.5)
-  parser.add_argument("--task", type=str, default="collision")
-  
+  parser.add_argument("--save_states", type=bool, default=False) # save blender states
+  parser.add_argument("--render_video", type=bool, default=False) # render videos
+
   FLAGS = parser.parse_args()
 
   if FLAGS.debug:
     FLAGS.logging_level = logging.DEBUG
     FLAGS.save_states = True
+    FLAGS.render_video = True
     print("Debug mode is on")
     
   else:
@@ -69,7 +70,7 @@ def write_video(source_dir, output_file):
       
   # write to mpeg video
   # imageio.mimsave('output/movie.gif', images, fps=12)
-  imageio.mimsave(output_file, images, fps=12)
+  imageio.mimsave(output_file, images, fps=12, quality=10)
 
 # def set_gpu_render():
 #   # for scene in bpy.data.scenes:
