@@ -41,15 +41,15 @@ frame_end = 36
 path_template = [
     {"euler_xyz": [0,0,0],      "key_frame_val": [-25, 25],      "key_frame_num": [0, frame_end]}, 
     {"euler_xyz": [-25,0,0],    "key_frame_val": [-25, 25],      "key_frame_num": [0, frame_end]}, # !
+    {"euler_xyz": [0,-10,0],    "key_frame_val": [-25, 25],      "key_frame_num": [0, frame_end]}, 
     {"euler_xyz": [0,-20,0],    "key_frame_val": [-25, 25],      "key_frame_num": [0, frame_end]}, 
-    {"euler_xyz": [0,-40,0],    "key_frame_val": [-25, 25],      "key_frame_num": [0, frame_end]}, 
-    {"euler_xyz": [0,-60,0],    "key_frame_val": [-25, 25],      "key_frame_num": [0, frame_end]}, # !
-    {"euler_xyz": [0,20,0],    "key_frame_val": [25, -25],      "key_frame_num": [0, frame_end]}, 
-    {"euler_xyz": [0,40,0],    "key_frame_val": [25, -25],      "key_frame_num": [0, frame_end]}, # !
-    {"euler_xyz": [0,60,0],    "key_frame_val": [25, -25],      "key_frame_num": [0, frame_end]}, # !
-    {"euler_xyz": [0,0,0],      "key_frame_val": [-20, 5, -20], "key_frame_num": [0, frame_mid, frame_end]}, 
-    {"euler_xyz": [0,0,0],      "key_frame_val": [20, -5, 20], "key_frame_num": [0, frame_mid, frame_end]}, 
-    {"euler_xyz": [0,-90,0],      "key_frame_val": [20, 5,  20], "key_frame_num": [0, frame_mid, frame_end]}, # ? 
+    {"euler_xyz": [0,-30,0],    "key_frame_val": [-25, 25],      "key_frame_num": [0, frame_end]}, # !
+    {"euler_xyz": [0,10,0],    "key_frame_val": [25, -25],      "key_frame_num": [0, frame_end]}, 
+    {"euler_xyz": [0,20,0],    "key_frame_val": [25, -25],      "key_frame_num": [0, frame_end]}, # !
+    {"euler_xyz": [0,30,0],    "key_frame_val": [25, -25],      "key_frame_num": [0, frame_end]}, # !
+    {"euler_xyz": [0,0,0],      "key_frame_val": [-30, 5, -30], "key_frame_num": [0, frame_mid, frame_end]}, 
+    {"euler_xyz": [0,0,0],      "key_frame_val": [30, -5, 30], "key_frame_num": [0, frame_mid, frame_end]}, 
+    {"euler_xyz": [0,-90,0],      "key_frame_val": [30, 5,  30], "key_frame_num": [0, frame_mid, frame_end]}, # ? 
     # {"euler_xyz": [0,0,0],      "key_frame_val": [-10, 20, -10], "key_frame_num": [0, frame_mid, frame_end]}, 
     # {"euler_xyz": [0,0,0], "key_frame_val": [-20, 20], "key_frame_num": [0, frame_end]}, 
 ]
@@ -78,6 +78,7 @@ class BaseTestScene(abc.ABC):
 
         self.floor_name = "floor_kb"
         self.table_name = "table_kb"
+        self.block_name = "block_kb"
 
         self.render_data = ("rgba",)
         self.background_hdri_id = FLAGS.background_hdri_id
@@ -186,7 +187,7 @@ class BaseTestScene(abc.ABC):
         Set the camera's circular path
         '''
 
-        center = [0, 0, self.ref_h + 0.5] # TODO add this to config: path_config["center"]
+        center = [0, 0, self.ref_h + 0.7] # TODO add this to config: path_config["center"]
         euler_xyz_deg = path_config["euler_xyz"]
         key_frame_idx = path_config["key_frame_num"]
         key_frame_val = path_config["key_frame_val"]
@@ -197,6 +198,7 @@ class BaseTestScene(abc.ABC):
                                                 location=center, 
                                                 )
         circle = bpy.context.object
+        circle.scale = [1.5]*3
         euler_xyz = np.array(euler_xyz_deg) * np.pi / 180
 
         # scale and rotate the x and y axis of the circle
@@ -448,24 +450,24 @@ class BaseTestScene(abc.ABC):
         # add random directional lighting
         # the light is placed at some random position sampled from a sphere, with min height
         ################################
-        sphere_radius, min_height = 3, 2 # TODO^ adjust this
+        sphere_radius, min_height = 1.5, 0.2 # TODO^ adjust this
         h = self.rng.uniform(min_height, sphere_radius)
         r = np.sqrt(sphere_radius**2 - h**2)
         theta = self.rng.uniform(0, 2*np.pi)
         x, y = r * np.cos(theta), r * np.sin(theta)
 
-        aim_at_range = (0, 0.5) # TODO^ adjust this 
+        aim_at_range = (0, 0.1) # TODO^ adjust this 
         aim_at_r = self.rng.uniform(*aim_at_range)
         theta = self.rng.uniform(0, 2*np.pi)
         aim_at_x, aim_at_y = aim_at_r * np.cos(theta), aim_at_r * np.sin(theta)
 
-        intensity_range = (10, 1000) # TODO^ adjust this
+        intensity_range = (100, 500) # TODO^ adjust this
         intensity_val = self.rng.uniform(*intensity_range)
 
         shadow_soft_size = (0.05, 0.5)
         
         # add color with random color, strenth, 
-        self.scene += kb.SpotLight(name="direc_light", position=(x, y, self.ref_h),
+        self.scene += kb.SpotLight(name="direc_light", position=(x, y, h + self.ref_h),
                         look_at=(aim_at_x, aim_at_y, self.ref_h), intensity=intensity_val)
         set_name("direc_light")
 
@@ -693,7 +695,7 @@ class BaseTestScene(abc.ABC):
                                 quaternion=(1,0,0,0),
                                 is_dynamic=True,
                                 scale=1.25, 
-                                name="block"
+                                name=self.block_name
                                 )
 
         aligh_block_objs(self.block_obj)

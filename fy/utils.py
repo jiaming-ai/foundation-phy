@@ -262,6 +262,39 @@ def getVisibleVertexFraction(obj_name, rng, sample_num=1000):
 
     return num_vert_in_fov / sample_num
 
+def isPointVisible(pt, obj_names):
+    """
+    Calculates and returns the fraction of vertices of a given object that are visible from a given camera position.
+
+    This function works by casting rays from the camera to each vertex of the object. 
+    If a ray intersects with another object before it reaches the vertex, 
+    the vertex is considered occluded. The function then calculates the 
+    fraction of vertices that are not occluded.
+
+    Params:
+    - camera (bpy.types.Object): The camera object from which visibility is checked.
+    - obj (bpy.types.Object): The object whose vertices' visibility is to be checked.
+
+    Returns:
+    - float: The fraction of vertices of the object that are visible from the camera position.
+    """
+    camera = bpy.data.objects['camera']
+    camera_loc = [camera.matrix_world[0][3], camera.matrix_world[1][3], camera.matrix_world[2][3]]
+    
+    dist = np.array(pt) - np.array(camera_loc)
+    dist = dist / np.linalg.norm(dist)
+
+    # apply ray casting to check whether the object is blocked in view
+    result, location, normal, index, target, matrix = bpy.context.scene.ray_cast(bpy.context.view_layer.depsgraph, camera_loc, dist)
+    if target is None:
+       return False 
+    
+    outcome = (target.name in obj_names)
+    if not(outcome):
+      logging.warning(f"The object {obj_names} is blocked in at least one frame, {target.name} detected instead")
+    return outcome
+
+
 def objInFOV(obj_name, th=20):
   """
     Roughly estimates and returns whether the object is inside the camera's FoC.

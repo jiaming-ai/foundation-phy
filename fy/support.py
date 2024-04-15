@@ -26,7 +26,7 @@ class SupportTestScene(BaseTestScene):
         super().__init__(FLAGS)
         self.frame_violation_start = 10
         self.initial_dist_to_table = 0
-        self.violation_type = 0#np.random.binomial(n=1,p=0.5)
+        self.violation_type = np.random.binomial(n=1,p=0.5)
         self.gravity = [0, 0, -1.5]
         self.flags.move_camera = False
 
@@ -72,7 +72,6 @@ class SupportTestScene(BaseTestScene):
             # get the violation frame
             for i in range(self.scene.frame_end+1):
                 pos_z = obj.keyframes["position"][i][2]
-                logging.error((i, pos_z, self.ref_h, pos_z - self.ref_h))
                 if pos_z - self.ref_h <= 0.2:
                     self.frame_violation_start = i
                     break
@@ -181,8 +180,8 @@ class SupportTestScene(BaseTestScene):
 
         if self.violation_type:
             # set the x_pos of the test object (either side of the table)
-            x_disp_pos = self.rng.uniform(0, 0.05) + self.table.aabbox[1][0]
-            x_disp_neg = self.rng.uniform(-0.05, 0) + self.table.aabbox[0][0]
+            x_disp_pos = self.rng.uniform(0.05, 0.1) + self.table.aabbox[1][0]
+            x_disp_neg = self.rng.uniform(-0.1, -0.05) + self.table.aabbox[0][0]
             x_disp = self.rng.choice([x_disp_pos, x_disp_neg])
             x_pos = x_disp
             small_obj.position = (x_pos, 0, z)

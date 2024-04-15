@@ -6,10 +6,13 @@ import logging
 import abc
 from tqdm import tqdm
 import bpy 
-from utils import getVisibleVertexFraction, objInFOV
+from utils import getVisibleVertexFraction, isPointVisible, objInFOV
 from permanance import PermananceTestScene
 import kubric as kb
 from utils import align_can_objs, spherical_to_cartesian
+
+# TODO: test if obj is on the table at most of time; why velocity changes after teletransportation
+
 
 class ContinuityTestScene(PermananceTestScene):
     """Test scene for permanance violation.
@@ -29,7 +32,7 @@ class ContinuityTestScene(PermananceTestScene):
         self.gravity = (0, 0, -4.9)
 
         if not(self.violation_type):
-            self.default_camera_pos = spherical_to_cartesian()
+            self.default_camera_pos = spherical_to_cartesian(theta_range=[45, 60])
             self.camera_look_at = (0, 0, self.ref_h)
             self.flags.move_camera = False 
         else:
@@ -57,6 +60,8 @@ class ContinuityTestScene(PermananceTestScene):
                         full_path)
             self.renderer.save_state(full_path)
 
+        
+
         for obj in self.test_obj: # works for only 1 object!
             # linear interpolation
             logging.info("Violation start at '%d' ",
@@ -70,11 +75,26 @@ class ContinuityTestScene(PermananceTestScene):
                     obj.position = pos
                     obj.keyframe_insert("position", frame)
             else:
+                # save the states of bg objs
+                bg_states = []
+                for bgobj in self.dynamic_objs:
+                    state = self.get_object_keyframes(bgobj)
+                    bg_states.append(state)
+
                 # object teletransport
+                vel = obj.keyframes["velocity"][self.frame_violation_start].copy()
+                obj.velocity = vel
+                obj.keyframe_insert("velocity", self.frame_violation_start)
+                
                 pos = obj.keyframes["position"][self.frame_violation_start].copy()
-                pos[0] += np.random.uniform(0.2, 0.4)
+                pos[0] += np.random.uniform(0.2, 0.3)
                 obj.position = pos
                 obj.keyframe_insert("position", self.frame_violation_start)
+
+
+                self._run_simulate(frame_start=self.frame_violation_start)
+                for i, bgobj in enumerate(self.dynamic_objs):
+                    self.set_object_keyframes(bgobj, bg_states[i])
             
             self.save_violation_scene()
             
@@ -93,9 +113,11 @@ class ContinuityTestScene(PermananceTestScene):
         # -- add small object
         print("adding the small object")
 
-        # relocate the block obj
-        self.block_obj.position = (0.15, -0.1, self.block_obj.position[2])
-        
+        if self.violation_type:
+            # relocate the block obj
+            self.block_obj.position = (0.15, -0.1, self.block_obj.position[2])
+        else:
+            self.block_obj.position = (0, 0, -10)
         # initialize the obj. Note the the initial position should be (0,0,0) 
         # so that the dist between its CoM and the table surface can be calculated
         small_obj_id = [name for name, spec in shapenet_assets._assets.items()
@@ -138,10 +160,7 @@ class ContinuityTestScene(PermananceTestScene):
 
     def _check_scene(self):
         """ Check whether the scene is valid. 
-        A valid PermancneTestScene should satisfy the following two conditions
-            
-            1. include at least one frame in which at least 85% of the test object is occluded
-            2. The test object is visible at the first and the last frame
+        A valid...
 
         Args:
             (bool): 
@@ -151,52 +170,72 @@ class ContinuityTestScene(PermananceTestScene):
         frame_end = self.flags.frame_end
 
         frame_idx = np.arange(1, frame_end+1)
-        visibility = np.zeros_like(frame_idx) * 0.0  
+        visibility_obj = np.zeros_like(frame_idx) * 0.0  
+        visibility_table = np.ones_like(frame_idx) * 1.0 
         in_view = np.zeros_like(frame_idx) * 0.0  
+        obj_on_table = np.ones_like(frame_idx) * 1.0  
 
         # Check visibility of the test obj at each frame
         print("Checking scene...")
+        obj = self.test_obj[0] # work for only one test obj
         for i, frame in enumerate(tqdm(range(self.flags.frame_start, self.flags.frame_end))):
             bpy.context.scene.frame_set(frame)
-            vis = getVisibleVertexFraction("small_obj", self.rng)
-            visibility[i] = vis  
+            vis_obj = getVisibleVertexFraction("small_obj", self.rng)
+            vis_table = isPointVisible([0, 0, self.ref_h], [self.table_name, self.block_name, "small_obj"])
+            visibility_obj[i] = vis_obj  
+            visibility_table[i] = vis_table
+            obj_on_table[i] = obj.keyframes["position"][frame][2] > self.ref_h-0.05
 
             # Check if the object is in FoV
             in_view[i] = objInFOV("small_obj")
 
-        idx = np.where(np.logical_and(visibility <= 0.1, in_view))[0]     
+        is_table_visible = visibility_table >= 0.15
+        idx = np.where(np.logical_and(visibility_obj >= 0.15, in_view))[0]     
         frames_violation = frame_idx[idx]
 
         if self.violation_type:
             cond_1 = len(frames_violation)  # the first condition
-            cond_2 = visibility[0] >= 0.15 \
-                    and visibility[5] >= 0.15 \
-                    and visibility[-6] >= 0.15
-            is_valid = cond_2 and cond_1
+            cond_2 = visibility_obj[0] >= 0.15 \
+                    and visibility_obj[5] >= 0.15 \
+                    and visibility_obj[-6] >= 0.15
+            cond = [cond_2,
+                    cond_1,
+                    in_view[0],
+                    in_view[5],
+                    in_view[-12],
+                    is_table_visible[6:-6].min(), 
+                    obj_on_table.sum() >= 25]
         else:
-            is_valid = in_view[0] and in_view[-5] >= 0.15
+            cond = [visibility_obj[0] >= 0.5,
+                    in_view[0],
+                    in_view[-5],
+                    is_table_visible[6:-6].min(), 
+                    obj_on_table.sum() >= 25]
 
+        is_valid = np.min(cond)
         if is_valid:
             # set when the test object is set disappeared  
-            self.frame_violation_start =  int(self.rng.uniform(10, 20))
+            if self.violation_type:
+                self.frame_violation_start = int((frames_violation[0]+frames_violation[-1])/2) 
+            else:
+                self.frame_violation_start =  int(self.rng.uniform(7, 17)) 
+                                    
         else:
-            print("scene invalid!")
+            if self.flags.debug:
+                logging.warning("Invalid scene data")
+                logging.warning(cond)
 
         return is_valid
     
-    def _run_simulate(self, save_state=False):
+    def _run_simulate(self, save_state=False, frame_start=0):
         self.block_obj.static = True
-        ret = super()._run_simulate(save_state)
-        # reduce the angular velocity at each frame
+        ret = super()._run_simulate(save_state, frame_start=frame_start)
+
         obj = self.test_obj[0] # work for only one test obj
-        
-        xy_axis = [0,1,2]
-        # xy_axis.remove(self.test_obj_z_orn) 
 
         # remove the test object's unexpected rotation
-
-        obj_pos0 = obj.keyframes["position"][0].copy()
-        for frame in range(self.scene.frame_start, self.scene.frame_end+1):
+        obj_pos0 = obj.keyframes["position"][frame_start].copy()
+        for frame in range(frame_start, self.scene.frame_end+1):
             # set xy velocity to 0
             q = obj.keyframes["quaternion"][frame].copy()
             q = np.array(q)
@@ -214,6 +253,7 @@ class ContinuityTestScene(PermananceTestScene):
             vel[1] = 0
             obj.velocity = vel
             obj.keyframe_insert("velocity", frame)
+        return ret
 
             # block.velocity = [0,0,0]
             # block.keyframe_insert("velocity", frame)
