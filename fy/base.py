@@ -39,17 +39,17 @@ print("finished loading all the sources")
 frame_mid = 18
 frame_end = 36
 path_template = [
-    {"euler_xyz": [0,0,0],      "key_frame_val": [-20, 20],      "key_frame_num": [0, frame_end]}, 
-    {"euler_xyz": [-25,0,0],    "key_frame_val": [-20, 20],      "key_frame_num": [0, frame_end]}, # !
-    {"euler_xyz": [0,-20,0],    "key_frame_val": [-20, 20],      "key_frame_num": [0, frame_end]}, 
-    {"euler_xyz": [0,-40,0],    "key_frame_val": [-15, 20],      "key_frame_num": [0, frame_end]}, 
-    {"euler_xyz": [0,-60,0],    "key_frame_val": [-10, 15],      "key_frame_num": [0, frame_end]}, # !
-    {"euler_xyz": [0,20,0],    "key_frame_val": [25, -20],      "key_frame_num": [0, frame_end]}, 
-    {"euler_xyz": [0,40,0],    "key_frame_val": [15, -20],      "key_frame_num": [0, frame_end]}, # !
-    {"euler_xyz": [0,60,0],    "key_frame_val": [10, -15],      "key_frame_num": [0, frame_end]}, # !
-    {"euler_xyz": [0,0,0],      "key_frame_val": [-20, 5, -20], "key_frame_num": [0, frame_mid, frame_end]}, 
-    {"euler_xyz": [0,0,0],      "key_frame_val": [20, -5, 20], "key_frame_num": [0, frame_mid, frame_end]}, 
-    {"euler_xyz": [0,-90,0],      "key_frame_val": [20, 5,  20], "key_frame_num": [0, frame_mid, frame_end]}, # ? 
+    {"euler_xyz": [0,0,0],      "key_frame_val": [-25, 25],      "key_frame_num": [0, frame_end]}, 
+    {"euler_xyz": [-25,0,0],    "key_frame_val": [-25, 25],      "key_frame_num": [0, frame_end]}, # !
+    {"euler_xyz": [0,-10,0],    "key_frame_val": [-25, 25],      "key_frame_num": [0, frame_end]}, 
+    {"euler_xyz": [0,-20,0],    "key_frame_val": [-25, 25],      "key_frame_num": [0, frame_end]}, 
+    {"euler_xyz": [0,-30,0],    "key_frame_val": [-25, 25],      "key_frame_num": [0, frame_end]}, # !
+    {"euler_xyz": [0,10,0],    "key_frame_val": [25, -25],      "key_frame_num": [0, frame_end]}, 
+    {"euler_xyz": [0,20,0],    "key_frame_val": [25, -25],      "key_frame_num": [0, frame_end]}, # !
+    {"euler_xyz": [0,30,0],    "key_frame_val": [25, -25],      "key_frame_num": [0, frame_end]}, # !
+    {"euler_xyz": [0,0,0],      "key_frame_val": [-30, 5, -30], "key_frame_num": [0, frame_mid, frame_end]}, 
+    {"euler_xyz": [0,0,0],      "key_frame_val": [30, -5, 30], "key_frame_num": [0, frame_mid, frame_end]}, 
+    {"euler_xyz": [0,-90,0],      "key_frame_val": [30, 5,  30], "key_frame_num": [0, frame_mid, frame_end]}, # ? 
     # {"euler_xyz": [0,0,0],      "key_frame_val": [-10, 20, -10], "key_frame_num": [0, frame_mid, frame_end]}, 
     # {"euler_xyz": [0,0,0], "key_frame_val": [-20, 20], "key_frame_num": [0, frame_end]}, 
 ]
@@ -67,7 +67,9 @@ class BaseTestScene(abc.ABC):
         self.output_dir = None
         self.scratch_dir = None
         self.background_hdri = None
+        self.gravity = (0, 0, -9.81)
 
+        self.dynamic_objs = []
         self.block_obj = None
         self.ref_h = 0
         self.add_table = False
@@ -76,12 +78,14 @@ class BaseTestScene(abc.ABC):
 
         self.floor_name = "floor_kb"
         self.table_name = "table_kb"
+        self.block_name = "block_kb"
 
         self.render_data = ("rgba",)
         self.background_hdri_id = FLAGS.background_hdri_id
 
         self.test_obj_states = {"violation": None, "non_violation": None}
         self.test_obj = None
+        self.default_camera_pos = [0, 0, 1]
         self.camera_look_at = [0,0,0]
 
         # load asset sources
@@ -155,6 +159,7 @@ class BaseTestScene(abc.ABC):
             self.ref_h = 0
 
         self._random_rotate_scene()
+        self.scene.gravity = self.gravity
 
         if self.flags.debug:
             logging.info("Ignore background objects in debugging mode.")
@@ -171,15 +176,18 @@ class BaseTestScene(abc.ABC):
             traj_idx = random.randint(0, len(self.camera_path_config)-1)
             self._set_camera_path(self.camera_path_config[traj_idx])
             self.cur_camera_traj_idx = traj_idx
+            self._set_camera_focus_point([0, 0, self.ref_h]) # auto set the height to be the table height if exists
+        else:
+            self.scene.camera.position = self.default_camera_pos
+            self.scene.camera.look_at(self.camera_look_at)
             
-        self._set_camera_focus_point([0, 0, self.ref_h]) # auto set the height to be the table height if exists
 
     def _set_camera_path(self, path_config):
         '''
         Set the camera's circular path
         '''
 
-        center = [0, 0, 1.7] # TODO add this to config: path_config["center"]
+        center = [0, 0, self.ref_h + 0.7] # TODO add this to config: path_config["center"]
         euler_xyz_deg = path_config["euler_xyz"]
         key_frame_idx = path_config["key_frame_num"]
         key_frame_val = path_config["key_frame_val"]
@@ -190,6 +198,7 @@ class BaseTestScene(abc.ABC):
                                                 location=center, 
                                                 )
         circle = bpy.context.object
+        circle.scale = [1.5]*3
         euler_xyz = np.array(euler_xyz_deg) * np.pi / 180
 
         # scale and rotate the x and y axis of the circle
@@ -280,11 +289,13 @@ class BaseTestScene(abc.ABC):
         """Generate a new random test scene"""
         self.i = 0
         while True:
+            self.dynamic_objs = []
             self._setup_everything()
             if self._check_scene():
                 self.generate_keyframes()
                 return 
-            # self.renderer.save_state(f"temp_scene/invalid_{self.i}.blend")
+            logging.warning("Current scene is invalid. Regenerating ")
+            self.renderer.save_state(f"temp_scene/invalid_{self.i}.blend")
             self.i += 1
             
             if self.flags.move_camera:
@@ -395,7 +406,9 @@ class BaseTestScene(abc.ABC):
         blender_scene = rng.choice(self.scenes)
         self.load_blender_scene(blender_scene)
         self._add_camera(self.scene)
-        
+
+        self.scene.camera.position = self.default_camera_pos
+        self.scene.camera.look_at(self.camera_look_at)
 
         # add floor to the scene
         logging.info("Adding floor to the scene")
@@ -431,29 +444,30 @@ class BaseTestScene(abc.ABC):
         self.rng = rng
         self.output_dir = output_dir
         self.scratch_dir = scratch_dir
+        self.camera_look_at = [0, 0, self.ref_h]
 
         ################################
         # add random directional lighting
         # the light is placed at some random position sampled from a sphere, with min height
         ################################
-        sphere_radius, min_height = 3, 2 # TODO^ adjust this
+        sphere_radius, min_height = 1.5, 0.2 # TODO^ adjust this
         h = self.rng.uniform(min_height, sphere_radius)
         r = np.sqrt(sphere_radius**2 - h**2)
         theta = self.rng.uniform(0, 2*np.pi)
         x, y = r * np.cos(theta), r * np.sin(theta)
 
-        aim_at_range = (0, 0.5) # TODO^ adjust this 
+        aim_at_range = (0, 0.1) # TODO^ adjust this 
         aim_at_r = self.rng.uniform(*aim_at_range)
         theta = self.rng.uniform(0, 2*np.pi)
         aim_at_x, aim_at_y = aim_at_r * np.cos(theta), aim_at_r * np.sin(theta)
 
-        intensity_range = (10, 1000) # TODO^ adjust this
+        intensity_range = (100, 500) # TODO^ adjust this
         intensity_val = self.rng.uniform(*intensity_range)
 
         shadow_soft_size = (0.05, 0.5)
         
         # add color with random color, strenth, 
-        self.scene += kb.SpotLight(name="direc_light", position=(x, y, self.ref_h),
+        self.scene += kb.SpotLight(name="direc_light", position=(x, y, h + self.ref_h),
                         look_at=(aim_at_x, aim_at_y, self.ref_h), intensity=intensity_val)
         set_name("direc_light")
 
@@ -565,7 +579,7 @@ class BaseTestScene(abc.ABC):
             bpy.data.objects.remove(obj_del, do_unlink = True)
             logging.info(f"The existing object '{name}' will be replaced")
 
-    def _run_simulate(self, save_state=False):
+    def _run_simulate(self, save_state=False, frame_start=0):
         """Run simulation and write to keyframes of objects
 
         Args:
@@ -574,7 +588,7 @@ class BaseTestScene(abc.ABC):
         Returns:
             _type_: _description_
         """
-        animation, collisions = self.simulator.run(frame_start=0,
+        animation, collisions = self.simulator.run(frame_start=frame_start,
                                       frame_end=self.scene.frame_end+1)
         
         if save_state:
@@ -608,8 +622,9 @@ class BaseTestScene(abc.ABC):
         kb.write_json(filename=self.output_dir / "metadata.json", data={
             "flags": vars(self.flags),
             "metadata": kb.get_scene_metadata(self.scene),
-            # "camera": kb.get_camera_info(self.scene.camera),
+            "camera": kb.get_camera_info(self.scene.camera),
             "instances": kb.get_instance_info(self.scene),
+            "table_id": self.table_id
         })
 
     def change_output_dir(self, new_output_dir):
@@ -639,7 +654,8 @@ class BaseTestScene(abc.ABC):
                                        scale: float = 2,
                                        x_range: tuple = (-3, 3), 
                                        y_range: tuple = (0.5, 1.5), 
-                                       z_range: tuple = (3, 5)):
+                                       z_range: tuple = (3, 5), 
+                                       set_rand_vel=False):
         """Add some other dynamic objects as background objects
         
         """
@@ -649,16 +665,17 @@ class BaseTestScene(abc.ABC):
             
             for i, u in enumerate([x_range, y_range, z_range]):
                 mean = (u[1] + u[0]) / 2
-                scale = (u[1] - u[0]) / 2
-                rand_pos[i] = rand_pos[i] * scale + mean 
+                std = (u[1] - u[0]) / 2
+                rand_pos[i] = rand_pos[i] * std + mean 
 
-            rand_vel = self.rng.uniform(-3, 3, 3)
+            rand_vel = self.rng.uniform(-3, 3, 3) if set_rand_vel else [0, 0, 0]
             sign = -1 if rand_pos[0] < 0 else 1
             rand_vel[0] = -sign * abs(rand_vel[0]) # make the object move towards the center
-            self.add_object(position=rand_pos,
+            obj = self.add_object(position=rand_pos,
                             velocity=rand_vel,
                             is_dynamic=True,
                             scale=scale)
+            self.dynamic_objs.append(obj)
 
     @abc.abstractmethod
     def add_test_objects(self):
@@ -678,7 +695,7 @@ class BaseTestScene(abc.ABC):
                                 quaternion=(1,0,0,0),
                                 is_dynamic=True,
                                 scale=1.25, 
-                                name="block"
+                                name=self.block_name
                                 )
 
         aligh_block_objs(self.block_obj)

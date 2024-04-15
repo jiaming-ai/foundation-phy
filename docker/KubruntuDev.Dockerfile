@@ -40,6 +40,7 @@ RUN pip install -r requirements.txt
 RUN pip install -r requirements_full.txt
 RUN pip install -r requirements_dev.txt
 RUN pip install -r requirements_docs.txt
+RUN pip install colorlog
 
 # --- cleanup
 RUN rm -f requirements.txt 

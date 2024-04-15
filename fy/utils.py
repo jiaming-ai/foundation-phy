@@ -38,12 +38,12 @@ def get_args():
   parser.set_defaults(save_state=False, frame_end=36, frame_rate=12,
                       resolution="512x512")
   
-  parser.add_argument("--debug", type=bool, default=False)
+  parser.add_argument("--debug", type=txt2bool, default=False)
   
-  parser.add_argument("--generate_violation", type=bool, default=True) # generate violation results
-  parser.add_argument("--save_states", type=bool, default=False) # save states
-  parser.add_argument("--render_both_results", type=bool, default=True) # render both violation and non-violation results
-  parser.add_argument("--move_camera", type=bool, default=True) # move camera
+  parser.add_argument("--generate_violation", type=txt2bool, default=True) # generate violation results
+  parser.add_argument("--save_states", type=txt2bool, default=False) # save states
+  parser.add_argument("--render_both_results", type=txt2bool, default=True) # render both violation and non-violation results
+  parser.add_argument("--move_camera", type=txt2bool, default=True) # move camera
   
   # ratio
   parser.add_argument("--use_indoor_scene", type=float, default=0.5)
@@ -262,6 +262,39 @@ def getVisibleVertexFraction(obj_name, rng, sample_num=1000):
 
     return num_vert_in_fov / sample_num
 
+def isPointVisible(pt, obj_names):
+    """
+    Calculates and returns the fraction of vertices of a given object that are visible from a given camera position.
+
+    This function works by casting rays from the camera to each vertex of the object. 
+    If a ray intersects with another object before it reaches the vertex, 
+    the vertex is considered occluded. The function then calculates the 
+    fraction of vertices that are not occluded.
+
+    Params:
+    - camera (bpy.types.Object): The camera object from which visibility is checked.
+    - obj (bpy.types.Object): The object whose vertices' visibility is to be checked.
+
+    Returns:
+    - float: The fraction of vertices of the object that are visible from the camera position.
+    """
+    camera = bpy.data.objects['camera']
+    camera_loc = [camera.matrix_world[0][3], camera.matrix_world[1][3], camera.matrix_world[2][3]]
+    
+    dist = np.array(pt) - np.array(camera_loc)
+    dist = dist / np.linalg.norm(dist)
+
+    # apply ray casting to check whether the object is blocked in view
+    result, location, normal, index, target, matrix = bpy.context.scene.ray_cast(bpy.context.view_layer.depsgraph, camera_loc, dist)
+    if target is None:
+       return False 
+    
+    outcome = (target.name in obj_names)
+    if not(outcome):
+      logging.warning(f"The object {obj_names} is blocked in at least one frame, {target.name} detected instead")
+    return outcome
+
+
 def objInFOV(obj_name, th=20):
   """
     Roughly estimates and returns whether the object is inside the camera's FoC.
@@ -325,6 +358,41 @@ def aligh_block_objs(obj):
 
   ## TODO: rotate around y to set the principal axis
 
+
+def align_can_objs(obj):
+  """Align the block object
+        Args:
+            obj: kubric object instance
+
+  """
+  x_size = obj.aabbox[1][0] - obj.aabbox[0][0]
+  y_size = obj.aabbox[1][1] - obj.aabbox[0][1]
+  z_size = obj.aabbox[1][2] - obj.aabbox[0][2]
+
+  # find the principal axis of the can object
+  # axis = np.argmax(np.array([x_size, y_size, z_size]))
+  
+  axis_compare = np.array([np.isclose(y_size, z_size), 
+                  np.isclose(z_size, x_size), 
+                  np.isclose(y_size, x_size)])
+  if axis_compare.max() == 1:
+    # check if two of the bbox sizes are similar
+    axis = np.argmax(np.array(axis_compare))
+  else:
+     # otherwise set the longest axis as the principal axis
+     axis = np.argmax(np.array([x_size, y_size, z_size]))
+
+  axis_rot_mapping = {
+     0: kb.Quaternion(axis=[0, 0, 1], degrees=-90), 
+     1: kb.Quaternion(axis=[1, 0, 0], degrees=0), 
+     2: kb.Quaternion(axis=[1, 0, 0], degrees=90)
+  }
+
+  quaternion_tf = axis_rot_mapping[axis]
+  obj.quaternion = quaternion_tf * obj.quaternion
+
+  return axis
+
   
 
 
@@ -344,6 +412,15 @@ def aligh_block_objs(obj):
 #         num_vert_in_fov += (target.name == obj.name)
 #     return num_vert_in_fov / num_vert
 
-def light_loc():
-   direc_light = bpy.data.objects["direc_light"]
-   print(direc_light.location)
+def spherical_to_cartesian(r_range=[3, 4], theta_range=[60, 80], phi_range=[-30, 30]):
+    r = np.random.uniform(r_range[0], r_range[1])
+    theta = np.random.uniform(theta_range[0], theta_range[1]) * np.pi/180
+    phi = np.random.uniform(np.random.uniform(phi_range[0], phi_range[1])) * np.pi/180
+    phi -= np.pi / 2
+
+    x = r * np.sin(theta) * np.cos(phi)
+    y = r * np.sin(theta) * np.sin(phi)
+    z = r * np.cos(theta)
+
+    return [x, y, z]
+
