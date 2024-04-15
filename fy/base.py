@@ -72,7 +72,6 @@ class BaseTestScene(abc.ABC):
         self.dynamic_objs = []
         self.block_obj = None
         self.ref_h = 0
-        self.add_table = False
         self.table_scale = 2
         self.shapenet_table_ids = None
 
@@ -145,6 +144,10 @@ class BaseTestScene(abc.ABC):
         self.camera_path_config = path_template
         self.camera_path_sample_stats = { i: 0 for i in range(len(self.camera_path_config))}
         self.cur_camera_traj_idx = None
+        self.is_add_block_objects = True
+        self.is_move_camera = FLAGS.move_camera
+        self.add_table = True
+        self.table_id = None
         
         self.object_asset_id_list = self.gso.all_asset_ids
 
@@ -157,10 +160,8 @@ class BaseTestScene(abc.ABC):
             use_indoor = rnd_n < 0.5
         
         if use_indoor:
-            self.add_table = True
             self._setup_indoor_scene()
         else:
-            self.add_table = False
             self._setup_hdri_scene()
             self.ref_h = 0
 
@@ -172,13 +173,16 @@ class BaseTestScene(abc.ABC):
         else:
             self.add_background_static_objects(3)
             self.add_background_dynamic_objects(1)
-        self.add_block_objects()
+        
+        if self.is_add_block_objects:
+            self.add_block_objects()
+
         self.add_test_objects()
 
         # self._run_simulate()
         
         # self.shift_scene(shift)
-        if self.flags.move_camera:
+        if self.is_move_camera:
             traj_idx = random.randint(0, len(self.camera_path_config)-1)
             self._set_camera_path(self.camera_path_config[traj_idx])
             self.cur_camera_traj_idx = traj_idx
@@ -337,7 +341,8 @@ class BaseTestScene(abc.ABC):
         Returns:
             _type_: _description_
         """
-        return self._check_scene_visible()
+        return True
+        # return self._check_scene_visible()
         
     
     def __enter__(self):

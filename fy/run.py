@@ -25,16 +25,16 @@ def main() -> None:
             logging.FileHandler("output/log"),
             logging.StreamHandler()
         ]
-)
+    )
 
     num_per_cls = 50
     max_trails = 1
     test_cls_all = {
         # "solidity": SolidityTestScene,
-        # "collision": CollisionTestScene,
-        "Permanance": PermananceTestScene ,
-        "Continuity": ContinuityTestScene,
-        "Support": SupportTestScene,
+        "collision": CollisionTestScene,
+        # "Permanance": PermananceTestScene ,
+        # "Continuity": ContinuityTestScene,
+        # "Support": SupportTestScene,
 
     }
     for test_name, test_cls in test_cls_all.items():
