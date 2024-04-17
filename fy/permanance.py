@@ -22,6 +22,8 @@ class PermananceTestScene(BaseTestScene):
 
         super().__init__(FLAGS)
         self.frame_violation_start = -1
+        self.is_add_background_dynamic_objects = False
+        self.is_add_background_static_objects = False
         
     def prepare_scene(self):
         print("preparing scene ...")

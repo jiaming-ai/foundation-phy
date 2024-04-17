@@ -37,9 +37,9 @@ class ContinuityTestScene(PermananceTestScene):
         if not(self.violation_type):
             self.default_camera_pos = spherical_to_cartesian(theta_range=[45, 60])
             self.camera_look_at = (0, 0, self.ref_h)
-            self.flags.move_camera = False 
+            self.is_move_camera = False
         else:
-            self.flags.move_camera = True
+            self.is_move_camera = True
     def prepare_scene(self):
         print("preparing scene ...")
         super().prepare_scene()

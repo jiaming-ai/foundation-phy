@@ -47,7 +47,7 @@ def get_args():
   parser.add_argument("--use_indoor_only", type=bool, default=True)
   
   parser.add_argument("--save_states", type=bool, default=False) # save blender states
-  parser.add_argument("--render_video", type=bool, default=False) # render videos
+  parser.add_argument("--render_video", default=False, action="store_true") # render video
 
   FLAGS = parser.parse_args()
 

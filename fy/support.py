@@ -28,10 +28,9 @@ class SupportTestScene(BaseTestScene):
         self.initial_dist_to_table = 0
         self.violation_type = np.random.binomial(n=1,p=0.5)
         self.gravity = [0, 0, -1.5]
-        self.flags.move_camera = False
+        self.is_move_camera = False
 
         self.default_camera_pos = spherical_to_cartesian()
-        
         
         
     def prepare_scene(self):
@@ -39,9 +38,12 @@ class SupportTestScene(BaseTestScene):
         super().prepare_scene()
         self.scene.gravity = self.gravity
 
-        self.renderer.save_state(f"temp_scene/cam.blend")
+        # self.renderer.save_state(f"temp_scene/cam.blend")
 
     def generate_keyframes(self):
+        # two cases:
+        # 1. pass through table
+        # 2. stops in air
         if self.violation_type:
             self.generate_keyframes_type_1()
         else:
