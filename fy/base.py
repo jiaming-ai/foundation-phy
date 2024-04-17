@@ -146,8 +146,10 @@ class BaseTestScene(abc.ABC):
         self.cur_camera_traj_idx = None
         self.is_add_block_objects = True
         self.is_move_camera = FLAGS.move_camera
-        self.add_table = True
+        self.is_add_table = True
         self.table_id = None
+        self.is_add_background_static_objects = True
+        self.is_add_background_dynamic_objects = True
         
         self.object_asset_id_list = self.gso.all_asset_ids
 
@@ -171,8 +173,10 @@ class BaseTestScene(abc.ABC):
         if self.flags.debug:
             logging.info("Ignore background objects in debugging mode.")
         else:
-            self.add_background_static_objects(3)
-            self.add_background_dynamic_objects(1)
+            if self.is_add_background_static_objects:
+                self.add_background_static_objects(3)
+            if self.is_add_background_dynamic_objects:
+                self.add_background_dynamic_objects(1)
         
         if self.is_add_block_objects:
             self.add_block_objects()
@@ -322,17 +326,18 @@ class BaseTestScene(abc.ABC):
         self.i = 0
         while True:
             self.dynamic_objs = []
+                
             self._setup_everything()
             if self._check_scene():
                 self.generate_keyframes()
                 return 
             logging.warning("Current scene is invalid. Regenerating ")
-            self.renderer.save_state(f"temp_scene/invalid_{self.i}.blend")
+            # self.renderer.save_state(f"temp_scene/invalid_{self.i}.blend")
             self.i += 1
             
-            # if self.flags.move_camera:
-            #     self.camera_path_sample_stats[self.cur_camera_traj_idx] += 1
-            #     logging.info(f"Re-sampling... Current stats: {self.camera_path_sample_stats}")
+            if self.flags.move_camera:
+                self.camera_path_sample_stats[self.cur_camera_traj_idx] += 1
+                logging.info(f"Re-sampling... Current stats: {self.camera_path_sample_stats}")
 
     def _check_scene(self):
         """Check if the scene is valid. Return Flase if the scene is invalid.
@@ -456,7 +461,7 @@ class BaseTestScene(abc.ABC):
         bpy.data.objects[self.floor_name].hide_viewport = True
 
 
-        if self.add_table: 
+        if self.is_add_table: 
             logging.info("Adding table to the scene")
             table_id = rng.choice(self.shapenet_table_ids)
             table = shapenet_assets.create(asset_id=table_id, static=True, name=self.table_name)
@@ -590,7 +595,7 @@ class BaseTestScene(abc.ABC):
 
         # temporarily set false 
         # to mitigate error "'XXXTestScene' object has no attribute 'gravity'"
-        if is_dynamic and False: 
+        if is_dynamic: 
             # reduce the restitution of the object to make it less bouncy
             # account for the gravity
             restituion_scale = -self.gravity[2] / 9.8

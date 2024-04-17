@@ -11,7 +11,7 @@ from fy.collision import CollisionTestScene
 from fy.permanance import PermananceTestScene
 from fy.continuity import ContinuityTestScene
 from fy.support import SupportTestScene
-
+import os
 
 def main() -> None:
     FLAGS = get_args()
@@ -27,18 +27,26 @@ def main() -> None:
         ]
     )
 
-    num_per_cls = 50
-    max_trails = 1
+    num_per_cls = 100
+    max_trails = 150
     test_cls_all = {
         # "solidity": SolidityTestScene,
-        "collision": CollisionTestScene,
+        # "collision": CollisionTestScene,
         # "Permanance": PermananceTestScene ,
-        # "Continuity": ContinuityTestScene,
-        # "Support": SupportTestScene,
+        "Continuity": ContinuityTestScene,
+        "Support": SupportTestScene,
 
     }
     for test_name, test_cls in test_cls_all.items():
-        n = 0
+        # check if exist rendered test in the output folder
+        # if exist, start from the last one
+        scene_output_dir = f"output/{test_name}/"
+        if os.path.exists(scene_output_dir):
+            n = len(os.listdir(scene_output_dir))
+            logging.info(f"Found {n} rendered test in the output folder. Start from the next one.")
+        else:
+            n = 0
+
         for i in range(max_trails):
             logging.info(f"========== Rendering {test_name} test {n} ===========")
             output_dir = f"output/{test_name}/scene_{n}/"
