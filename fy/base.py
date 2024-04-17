@@ -335,7 +335,7 @@ class BaseTestScene(abc.ABC):
             # self.renderer.save_state(f"temp_scene/invalid_{self.i}.blend")
             self.i += 1
             
-            if self.is_move_camera:
+            if self.flags.move_camera:
                 self.camera_path_sample_stats[self.cur_camera_traj_idx] += 1
                 logging.info(f"Re-sampling... Current stats: {self.camera_path_sample_stats}")
 
@@ -476,6 +476,7 @@ class BaseTestScene(abc.ABC):
             self.scene.add(table)
             set_name(self.table_name)
             self.ref_h = table_h
+            self.default_camera_pos[2] += table_h
             self.table_id = table_id
             print(self.table_id)
        
@@ -714,6 +715,16 @@ class BaseTestScene(abc.ABC):
                             is_dynamic=True,
                             scale=scale)
             self.dynamic_objs.append(obj)
+
+    def _save_bg_objs_states(self):
+        self.bg_states = []
+        for obj in self.dynamic_objs:
+            state = self.get_object_keyframes(obj)
+            self.bg_states.append(state)
+
+    def _load_bg_objs_states(self):    
+        for i, obj in enumerate(self.dynamic_objs):
+            self.set_object_keyframes(obj, self.bg_states[i])
 
     @abc.abstractmethod
     def add_test_objects(self):

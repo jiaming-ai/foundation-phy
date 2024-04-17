@@ -30,16 +30,16 @@ class ContinuityTestScene(PermananceTestScene):
         self.frame_violation_start = -1
         # two cases:
         # 1. object disappears
-        # 2. object teleports
+        # 0. object teleports
         self.violation_type = np.random.binomial(n=1,p=0.5)
         self.gravity = (0, 0, -4.9)
 
         if not(self.violation_type):
-            self.default_camera_pos = spherical_to_cartesian(theta_range=[45, 60])
+            self.default_camera_pos = spherical_to_cartesian(r_range=[2, 3], theta_range=[75, 85])
             self.camera_look_at = (0, 0, self.ref_h)
-            self.is_move_camera = False
+            self.flags.move_camera = False 
         else:
-            self.is_move_camera = True
+            self.flags.move_camera = True
     def prepare_scene(self):
         print("preparing scene ...")
         super().prepare_scene()
@@ -89,7 +89,7 @@ class ContinuityTestScene(PermananceTestScene):
                 obj.keyframe_insert("velocity", self.frame_violation_start)
                 
                 pos = obj.keyframes["position"][self.frame_violation_start].copy()
-                pos[0] += np.random.uniform(0.2, 0.3)
+                pos[0] += np.random.uniform(0.5, 0.65)
                 obj.position = pos
                 obj.keyframe_insert("position", self.frame_violation_start)
 
@@ -198,32 +198,43 @@ class ContinuityTestScene(PermananceTestScene):
         idx = np.where(np.logical_and(visibility_obj >= 0.15, in_view))[0]     
         frames_violation = frame_idx[idx]
 
+        is_obj_visible = visibility_obj >= 0.35
         if self.violation_type:
             cond_1 = len(frames_violation)  # the first condition
-            cond_2 = visibility_obj[0] >= 0.15 \
-                    and visibility_obj[5] >= 0.15 \
-                    and visibility_obj[-6] >= 0.15
+            # cond_2 = visibility_obj[0] >= 0.15 \
+            #         and visibility_obj[5] >= 0.15 \
+            #         and visibility_obj[-6] >= 0.15
+            cond_2 = is_obj_visible[:6].max() and is_obj_visible[-7:].max()
             cond = [cond_2,
                     cond_1,
                     in_view[0],
                     in_view[5],
-                    in_view[-12],
+                    in_view[-12:].max(),
                     is_table_visible[6:-6].min(), 
-                    obj_on_table.sum() >= 25]
+                    obj_on_table.sum() >= 16]
         else:
             cond = [visibility_obj[0] >= 0.5,
                     in_view[0],
                     in_view[-5],
                     is_table_visible[6:-6].min(), 
-                    obj_on_table.sum() >= 25]
+                    obj_on_table.sum() >= 20]
 
         is_valid = np.min(cond)
         if is_valid:
             # set when the test object is set disappeared  
             if self.violation_type:
-                self.frame_violation_start = int((frames_violation[0]+frames_violation[-1])/2) 
+                if frames_violation.min() > 0: 
+                    self.frame_violation_start = int((frames_violation[0]+frames_violation[-1])/2) 
+                else:
+                    # randomly sample a index corresponding to an arbitrary non-zero element
+                    nonzero_indices = np.nonzero(frames_violation)[0] 
+                    # if len(nonzero_indices >= 3):
+                    #     nonzero_indices = nonzero_indices[1:-1] # remove the first and the last element
+                    random_nonzero_index = int(len(nonzero_indices) / 2)# np.random.choice(nonzero_indices)
+                    self.frame_violation_start = random_nonzero_index
+                
             else:
-                self.frame_violation_start =  int(self.rng.uniform(7, 17)) 
+                self.frame_violation_start =  int(self.rng.uniform(4, 12)) 
                                     
         else:
             if self.flags.debug:

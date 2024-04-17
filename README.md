@@ -26,9 +26,11 @@ docker run --rm -it \
 
 For testing
 ```
-python fy/run_tiancheng.py --use_indoor_scene 1 --save_states True --debug True
+python fy/run_tiancheng.py --use_indoor_only 1 --save_states True --debug True
 
 ```
 
-# Problems #
-1. Blender can't select all the objects when rotating the scene 
+```
+python fy/run_tiancheng.py --use_indoor_only 1 --save_states False --debug False
+
+```

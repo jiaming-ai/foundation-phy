@@ -26,11 +26,12 @@ class SupportTestScene(BaseTestScene):
         super().__init__(FLAGS)
         self.frame_violation_start = 10
         self.initial_dist_to_table = 0
+        # 1: float in air; 0: pass through table
         self.violation_type = np.random.binomial(n=1,p=0.5)
         self.gravity = [0, 0, -1.5]
         self.is_move_camera = False
 
-        self.default_camera_pos = spherical_to_cartesian()
+        self.default_camera_pos = spherical_to_cartesian(r_range=[2,3], theta_range=[75, 85])
         
         
     def prepare_scene(self):
@@ -50,7 +51,7 @@ class SupportTestScene(BaseTestScene):
             self.generate_keyframes_type_0()
             
     def generate_keyframes_type_1(self):
-        """Generate keyframes for the test objects, for both violation and non-violation states
+        """ float in air
         """
         _, collisions = self._run_simulate()
         # # following the laws of physics
@@ -62,8 +63,9 @@ class SupportTestScene(BaseTestScene):
                         full_path)
             self.renderer.save_state(full_path)
 
+        self._save_bg_objs_states()
         
-        # two cases: 1. pass through table 2. stops
+        # two cases: 0. pass through table 1. stops
         # set when test object stops moving
     
         for obj in self.test_obj:
@@ -72,31 +74,55 @@ class SupportTestScene(BaseTestScene):
                                                 #   np.sqrt(2/9.8 * self.initial_dist_to_table)) 
 
             # get the violation frame
-            for i in range(self.scene.frame_end+1):
-                pos_z = obj.keyframes["position"][i][2]
-                if pos_z - self.ref_h <= 0.2:
-                    self.frame_violation_start = i
-                    break
+            # for i in range(self.scene.frame_end+1):
+            #     pos_z = obj.keyframes["position"][i][2]
+            #     if pos_z - self.ref_h <= 0.2:
+            #         self.frame_violation_start = i
+            #         break
+        
+        # add imaginary floor
+            # TODO: BGOBJ
+        dist = self.rng.uniform(0.05, 0.15)
+        fake_floor_name = "imaginary_floor"
+        self._delete_from_blender_scene(fake_floor_name)
+        self.scene += kb.Cube(name=fake_floor_name, scale=(10, 10, 0.001), 
+                              position=(0, 0, self.ref_h + dist -0.001),
+                        static=True)
+        
+        floor_obj = bpy.context.object
+        floor_obj.name = fake_floor_name
+        
+        # reset initial position and simulate again
+        for obj in self.test_obj:
+            pos = obj.keyframes["position"][0].copy()
+            obj.position = pos
+            obj.keyframe_insert("position", 0)
+
+        self._run_simulate()
+        self._load_bg_objs_states()
+
+        bpy.data.objects["imaginary_floor"].hide_render = True
+        bpy.data.objects["imaginary_floor"].hide_viewport = True
                 
 
-            logging.info("Violation start at '%d' ",
-                        self.frame_violation_start)
-
-            for frame in range(int(self.frame_violation_start), self.scene.frame_end+1):
-                obj.position = obj.keyframes["position"][self.frame_violation_start]
-                obj.keyframe_insert("position", frame)
+        # for frame in range(int(self.frame_violation_start), self.scene.frame_end+1):
+        #     obj.position = obj.keyframes["position"][self.frame_violation_start]
+        #     obj.keyframe_insert("position", frame)
                 
 
-            self.save_violation_scene() 
-            
-            if self.flags.save_states:
-                fname = "violation.blend"
-                full_path = self.output_dir / fname
-                logging.info("Saving the renderer state to '%s' ",
-                            full_path)
-                self.renderer.save_state(full_path)
+        self.save_violation_scene() 
+        
+        if self.flags.save_states:
+            fname = "violation.blend"
+            full_path = self.output_dir / fname
+            logging.info("Saving the renderer state to '%s' ",
+                        full_path)
+            self.renderer.save_state(full_path)
 
     def generate_keyframes_type_0(self):
+        """
+        pass through table
+        """
 
         self._run_simulate()
         self.save_non_violation_scene()
@@ -107,10 +133,7 @@ class SupportTestScene(BaseTestScene):
                         full_path)
             self.renderer.save_state(full_path)
 
-        bg_states = []
-        for obj in self.dynamic_objs:
-            state = self.get_object_keyframes(obj)
-            bg_states.append(state)
+        self._save_bg_objs_states()
 
         self.load_non_violation_scene()
         for obj in self.test_obj:
@@ -119,16 +142,11 @@ class SupportTestScene(BaseTestScene):
             obj.keyframe_insert("position", 0)
         self.hide_table()
         self._run_simulate()
-        # fname = "temp.blend"
-        # full_path = self.output_dir / fname
-        # logging.info("Saving the renderer state to '%s' ",
-        #             full_path)
-        # self.renderer.save_state(full_path)
+
         self.save_violation_scene()
         self.recover_table()
 
-        for i, obj in enumerate(self.dynamic_objs):
-            self.set_object_keyframes(obj, bg_states[i])
+        self._load_bg_objs_states()
 
         # self._run_simulate()
         # self.load_violation_scene()
@@ -182,8 +200,9 @@ class SupportTestScene(BaseTestScene):
 
         if self.violation_type:
             # set the x_pos of the test object (either side of the table)
-            x_disp_pos = self.rng.uniform(0.05, 0.1) + self.table.aabbox[1][0]
-            x_disp_neg = self.rng.uniform(-0.1, -0.05) + self.table.aabbox[0][0]
+            noise = self.rng.uniform(0.1, 0.2)
+            x_disp_pos = noise + self.table.aabbox[1][0]
+            x_disp_neg = -noise + self.table.aabbox[0][0]
             x_disp = self.rng.choice([x_disp_pos, x_disp_neg])
             x_pos = x_disp
             small_obj.position = (x_pos, 0, z)
@@ -208,7 +227,6 @@ class SupportTestScene(BaseTestScene):
         
         return small_obj
     
-
     def _check_scene(self):
         # frame_end = self.flags.frame_end
         # frame_start = 5
@@ -231,12 +249,13 @@ class SupportTestScene(BaseTestScene):
         # #     # and in_view[0]
         # #     # and in_view[1]
         # #     )
-
+        # keyframes["position"][frame]
+        # tentatively set the obj to the desired position
         test_frame = 10
         obj = self.test_obj[0]
         obj_pos0 = obj.position 
         obj_h  = obj.aabbox[1][2] - obj.aabbox[0][2]
-        test_z = [obj_pos0[2], self.ref_h+obj_h, obj_h]
+        test_z = [self.ref_h+obj_h, obj_h]
         visibility = np.zeros(len(test_z)) * 0.0
         
         for i, pos_z in enumerate(test_z):
@@ -253,9 +272,13 @@ class SupportTestScene(BaseTestScene):
 
         if self.violation_type:
             visibility[-1] = 1
+
+        if visibility[-1] == 0:
+            with open("invalid_tables.txt", 'a') as file:
+                file.write(self.table_id+"\n")
         obj.position = obj_pos0
         obj.keyframe_insert("position", 0)
-
+        # logging.error(visibility)
         return visibility.min()
 
         
