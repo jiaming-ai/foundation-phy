@@ -26,11 +26,11 @@ docker run --rm -it \
 
 For testing
 ```
-python fy/run_tiancheng.py --use_indoor_only 1 --save_states True --debug True
+python fy/run_tiancheng.py --save_states True --debug True
 
 ```
 
 ```
-python fy/run_tiancheng.py --use_indoor_only 1 --save_states False --debug False
+python fy/run_tiancheng.py --save_states False --debug False
 
 ```
