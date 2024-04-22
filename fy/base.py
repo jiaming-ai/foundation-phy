@@ -146,7 +146,7 @@ class BaseTestScene(abc.ABC):
         self.cur_camera_traj_idx = None
         self.is_add_block_objects = True
         self.is_move_camera = FLAGS.move_camera
-        self.is_add_table = True
+        self.add_table = True
         self.table_id = None
         self.is_add_background_static_objects = True
         self.is_add_background_dynamic_objects = True
@@ -335,7 +335,7 @@ class BaseTestScene(abc.ABC):
             # self.renderer.save_state(f"temp_scene/invalid_{self.i}.blend")
             self.i += 1
             
-            if self.flags.move_camera:
+            if self.is_move_camera:
                 self.camera_path_sample_stats[self.cur_camera_traj_idx] += 1
                 logging.info(f"Re-sampling... Current stats: {self.camera_path_sample_stats}")
 
@@ -461,7 +461,7 @@ class BaseTestScene(abc.ABC):
         bpy.data.objects[self.floor_name].hide_viewport = True
 
 
-        if self.is_add_table: 
+        if self.add_table: 
             logging.info("Adding table to the scene")
             table_id = rng.choice(self.shapenet_table_ids)
             table = shapenet_assets.create(asset_id=table_id, static=True, name=self.table_name)
@@ -479,11 +479,11 @@ class BaseTestScene(abc.ABC):
             self.default_camera_pos[2] += table_h
             self.table_id = table_id
             print(self.table_id)
+            self.camera_look_at = [0, 0, self.ref_h]
        
         self.rng = rng
         self.output_dir = output_dir
         self.scratch_dir = scratch_dir
-        self.camera_look_at = [0, 0, self.ref_h]
 
         ################################
         # add random directional lighting
