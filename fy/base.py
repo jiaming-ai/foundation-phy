@@ -79,6 +79,9 @@ class BaseTestScene(abc.ABC):
         self.table_name = "table_kb"
         self.block_name = "block_kb"
 
+        self.block_id = None
+        self.test_obj_id = []
+
         self.render_data = ("rgba",)
         self.background_hdri_id = FLAGS.background_hdri_id
 
@@ -88,6 +91,8 @@ class BaseTestScene(abc.ABC):
         self.test_obj = None
         self.default_camera_pos = [0, 0, 1]
         self.camera_look_at = [0,0,0]
+        self.frame_violation_start = -1
+        self.violation_type = -1
 
         # load asset sources
         self.kubasic = kubasic_assets # kb.AssetSource.from_manifest(FLAGS.kubasic_assets)
@@ -161,7 +166,7 @@ class BaseTestScene(abc.ABC):
             use_indoor = True
         else:
             rnd_n = random.random()
-            use_indoor = rnd_n < 0.5
+            use_indoor = 0#rnd_n < 0.5
         
         if use_indoor:
             self._setup_indoor_scene()
@@ -330,7 +335,7 @@ class BaseTestScene(abc.ABC):
 
     def prepare_scene(self):
         """Generate a new random test scene"""
-        self.i = 0
+        # self.i = 0
         while True:
             self.dynamic_objs = []
                 
@@ -340,7 +345,7 @@ class BaseTestScene(abc.ABC):
                 return 
             logging.warning("Current scene is invalid. Regenerating ")
             # self.renderer.save_state(f"temp_scene/invalid_{self.i}.blend")
-            self.i += 1
+            # self.i += 1
             
             if self.is_move_camera:
                 self.camera_path_sample_stats[self.cur_camera_traj_idx] += 1
@@ -371,7 +376,7 @@ class BaseTestScene(abc.ABC):
         """
         scene = core.scene.Scene.from_flags(self.flags)
         simulator = PyBullet(scene, self.scratch_dir)
-        renderer = Blender(scene, self.scratch_dir,custom_scene=blender_scene)
+        renderer = Blender(scene, self.scratch_dir,custom_scene=blender_scene, samples_per_pixel=64)
         self.scene = scene
         self.simulator = simulator
         self.renderer = renderer
@@ -670,7 +675,13 @@ class BaseTestScene(abc.ABC):
             "metadata": kb.get_scene_metadata(self.scene),
             "camera": kb.get_camera_info(self.scene.camera),
             "instances": kb.get_instance_info(self.scene),
-            "table_id": self.table_id
+            "has_table": self.add_table,
+            "table_id": self.table_id, 
+            "test_obj_id": self.test_obj_id, 
+            "block_id": self.block_id,
+            "fps": self.flags.frame_rate, 
+            "volation_frame_start_at": self.frame_violation_start, 
+            "test_case": self.violation_type
         })
 
     def change_output_dir(self, new_output_dir):
@@ -757,7 +768,7 @@ class BaseTestScene(abc.ABC):
         aligh_block_objs(self.block_obj)
 
         self.block_obj.position = (0, 0, self.ref_h + 0.001 - self.block_obj.aabbox[0][2])
-
+        self.block_id = block_obj_id
         # randomly jitter the object
         ...
 
@@ -882,6 +893,9 @@ class BaseTestScene(abc.ABC):
 
         # fast gi approximation
         bpy.context.scene.cycles.use_fast_gi = True
+
+        bpy.context.scene.cycles.debug_use_spatial_splits = False
+
 
 
                                     

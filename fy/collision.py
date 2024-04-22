@@ -79,6 +79,7 @@ class CollisionTestScene(BaseTestScene):
                 raise RuntimeError("No collision detected")
 
             self.first_collision_frame = first_collision_frame
+            self.frame_violation_start = self.first_collision_frame
             logging.debug(f"first_collision_frame: {first_collision_frame}")
             
             # make the objects fall straight down after the collision
@@ -158,7 +159,8 @@ class CollisionTestScene(BaseTestScene):
                                            name="big_obj") # 2.8
         
         self.test_obj = [obj_1, obj_2]
-        
+        self.test_obj_id = [obj_1_id, obj_2_id]
+
         return obj_1, obj_2
     
     def _check_scene(self):

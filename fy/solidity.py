@@ -28,6 +28,7 @@ class SolidityTestScene(BaseTestScene):
         self.collision_z_distance = 0.1 # distance between obj_1 and obj_2 in z direction
         self.collision_height = 1.2
 
+        self.frame_violation_start = self.violation_time * self.flags.frame_rate
 
         self.default_camera_pos = spherical_to_cartesian(r_range=[2.5, 3], theta_range=[89, 91], phi_range=[-5, 5]) # (0, -1, 1.7)
         self.camera_look_at = [0, 0, self.collision_height]
@@ -143,6 +144,7 @@ class SolidityTestScene(BaseTestScene):
                                            name="big_obj")
         
         self.test_obj = [obj_1, obj_2]
+        self.test_obj_id = [obj_1_id, obj_2_id]
         
         return obj_1, obj_2
 

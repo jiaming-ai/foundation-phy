@@ -72,16 +72,16 @@ def main() -> None:
 
     
     num_per_cls = 50
-    max_trails = 40 if not(FLAGS.debug) else 10
+    max_trails = 20 if not(FLAGS.debug) else 10
     test_cls_all = {
-        "solidity": SolidityTestScene,
+        # "solidity": SolidityTestScene,
         # "continuity": ContinuityTestScene, 
         # "Support": SupportTestScene, 
-        # "collision": CollisionTestScene
+        "collision": CollisionTestScene
         # "Permanance": PermananceTestScene 
     }
     for test_name, test_cls in test_cls_all.items():
-        n = 0
+        n = 0; i = 0
         for i in tqdm(range(max_trails)):
             output_dir = f"{output_dirname}/{test_name}/scene_{i}/"
             if os.path.isdir(output_dir):
@@ -97,8 +97,17 @@ def main() -> None:
             if test_name in ["Support", "continuity"]:
                 FLAGS.move_camera = False
 
-            generate_test_scene(test_cls, FLAGS, output_dir, video_dir, i)
-            n += 1
+            while True:
+                try:
+                    generate_test_scene(test_cls, FLAGS, output_dir, video_dir, i)
+                    i += 1
+                    break
+                except Exception as e:
+                    logging.error(f"Error rendering collision test {n}: {e}\n Skipping to the next one.")
+                    # if debug is on, raise the exception
+                    # if FLAGS.debug:
+                    #     raise
+                    continue
             # if n >= num_per_cls:
             #     break
             
