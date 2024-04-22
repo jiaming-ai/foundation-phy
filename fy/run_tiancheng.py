@@ -74,10 +74,10 @@ def main() -> None:
     num_per_cls = 50
     max_trails = 40 if not(FLAGS.debug) else 10
     test_cls_all = {
-        # "solidity": SolidityTestScene,
+        "solidity": SolidityTestScene,
         # "continuity": ContinuityTestScene, 
         # "Support": SupportTestScene, 
-        "collision": CollisionTestScene
+        # "collision": CollisionTestScene
         # "Permanance": PermananceTestScene 
     }
     for test_name, test_cls in test_cls_all.items():
