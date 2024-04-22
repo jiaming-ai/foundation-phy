@@ -82,6 +82,8 @@ class BaseTestScene(abc.ABC):
         self.render_data = ("rgba",)
         self.background_hdri_id = FLAGS.background_hdri_id
 
+        self.render_speedup = True
+
         self.test_obj_states = {"violation": None, "non_violation": None}
         self.test_obj = None
         self.default_camera_pos = [0, 0, 1]
@@ -194,6 +196,11 @@ class BaseTestScene(abc.ABC):
         else:
             self.scene.camera.position = self.default_camera_pos
             self.scene.camera.look_at(self.camera_look_at)
+
+        if self.render_speedup:
+            self._set_fast_rendering()
+            
+
 
     # def _check_scene_visible(self):
     #     frame_end = self.flags.frame_end
@@ -860,6 +867,21 @@ class BaseTestScene(abc.ABC):
         for i, obj in enumerate(self.test_obj):
             self.set_object_keyframes(obj, self.test_obj_states["non_violation"][i])
         
+
+    def _set_fast_rendering(self):
+        # adaptive sampling
+        bpy.context.scene.cycles.use_adaptive_sampling = True
+        bpy.context.scene.cycles.adaptive_threshold = 0.1
+
+        # ligh paths
+        bpy.context.scene.cycles.max_bounces = 1
+        bpy.context.scene.cycles.diffuse_bounces = 1
+        bpy.context.scene.cycles.glossy_bounces = 1
+        bpy.context.scene.cycles.transparent_max_bounces = 2
+        bpy.context.scene.cycles.transmission_bounces = 1
+
+        # fast gi approximation
+        bpy.context.scene.cycles.use_fast_gi = True
 
 
                                     
