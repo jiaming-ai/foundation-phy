@@ -26,7 +26,7 @@ class CollisionTestScene(BaseTestScene):
         self.violation_time = 1.0 # second before collision
         self.collision_xy_distance = 2.2 # distance between obj_1 and obj_2 in xy plane
         self.collision_z_distance = 0.1 # distance between obj_1 and obj_2 in z direction
-        self.collision_height = 0.8
+        self.collision_height = 1.2
         self.gravity = [0, 0, -2.8]
 
         # look at a fixed height
@@ -163,11 +163,11 @@ class CollisionTestScene(BaseTestScene):
     
     def _check_scene(self):
         # check if the test object is blocked by the scene at the test frame
-        for i in range(self.first_collision_frame, min(self.flags.frame_end, self.first_collision_frame+10)):
-            bpy.context.scene.frame_set(self.first_collision_frame + 2)
+        for i in range(self.first_collision_frame-2, min(self.flags.frame_end, self.first_collision_frame+4)):
+            bpy.context.scene.frame_set(i)
             small_obj_visibility = getVisibleVertexFraction("small_obj", self.rng)
             big_obj_visibility = getVisibleVertexFraction("big_obj", self.rng)
-
+            print(small_obj_visibility, big_obj_visibility)
             if small_obj_visibility <= 0.8 or big_obj_visibility <= 0.8:
                 return False        
         return True
