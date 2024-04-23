@@ -82,6 +82,8 @@ class BaseTestScene(abc.ABC):
         self.render_data = ("rgba",)
         self.background_hdri_id = FLAGS.background_hdri_id
 
+        self.render_speedup = True
+
         self.test_obj_states = {"violation": None, "non_violation": None}
         self.test_obj = None
         self.default_camera_pos = [0, 0, 1]
@@ -146,7 +148,7 @@ class BaseTestScene(abc.ABC):
         self.cur_camera_traj_idx = None
         self.is_add_block_objects = True
         self.is_move_camera = FLAGS.move_camera
-        self.is_add_table = True
+        self.add_table = True
         self.table_id = None
         self.is_add_background_static_objects = True
         self.is_add_background_dynamic_objects = True
@@ -194,6 +196,11 @@ class BaseTestScene(abc.ABC):
         else:
             self.scene.camera.position = self.default_camera_pos
             self.scene.camera.look_at(self.camera_look_at)
+
+        if self.render_speedup:
+            self._set_fast_rendering()
+            
+
 
     # def _check_scene_visible(self):
     #     frame_end = self.flags.frame_end
@@ -335,7 +342,7 @@ class BaseTestScene(abc.ABC):
             # self.renderer.save_state(f"temp_scene/invalid_{self.i}.blend")
             self.i += 1
             
-            if self.flags.move_camera:
+            if self.is_move_camera:
                 self.camera_path_sample_stats[self.cur_camera_traj_idx] += 1
                 logging.info(f"Re-sampling... Current stats: {self.camera_path_sample_stats}")
 
@@ -461,7 +468,7 @@ class BaseTestScene(abc.ABC):
         bpy.data.objects[self.floor_name].hide_viewport = True
 
 
-        if self.is_add_table: 
+        if self.add_table: 
             logging.info("Adding table to the scene")
             table_id = rng.choice(self.shapenet_table_ids)
             table = shapenet_assets.create(asset_id=table_id, static=True, name=self.table_name)
@@ -479,11 +486,11 @@ class BaseTestScene(abc.ABC):
             self.default_camera_pos[2] += table_h
             self.table_id = table_id
             print(self.table_id)
+            self.camera_look_at = [0, 0, self.ref_h]
        
         self.rng = rng
         self.output_dir = output_dir
         self.scratch_dir = scratch_dir
-        self.camera_look_at = [0, 0, self.ref_h]
 
         ################################
         # add random directional lighting
@@ -860,6 +867,21 @@ class BaseTestScene(abc.ABC):
         for i, obj in enumerate(self.test_obj):
             self.set_object_keyframes(obj, self.test_obj_states["non_violation"][i])
         
+
+    def _set_fast_rendering(self):
+        # adaptive sampling
+        bpy.context.scene.cycles.use_adaptive_sampling = True
+        bpy.context.scene.cycles.adaptive_threshold = 0.1
+
+        # ligh paths
+        bpy.context.scene.cycles.max_bounces = 1
+        bpy.context.scene.cycles.diffuse_bounces = 1
+        bpy.context.scene.cycles.glossy_bounces = 1
+        bpy.context.scene.cycles.transparent_max_bounces = 2
+        bpy.context.scene.cycles.transmission_bounces = 1
+
+        # fast gi approximation
+        bpy.context.scene.cycles.use_fast_gi = True
 
 
                                     
