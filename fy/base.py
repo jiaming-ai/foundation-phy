@@ -148,7 +148,7 @@ class BaseTestScene(abc.ABC):
         self.cur_camera_traj_idx = None
         self.is_add_block_objects = True
         self.is_move_camera = FLAGS.move_camera
-        self.add_table = True
+        self.is_add_table = True
         self.table_id = None
         self.is_add_background_static_objects = True
         self.is_add_background_dynamic_objects = True
@@ -171,7 +171,7 @@ class BaseTestScene(abc.ABC):
             self._setup_hdri_scene()
             self.ref_h = 0
 
-        self._random_rotate_scene()
+
         self.scene.gravity = self.gravity
 
         if self.flags.debug:
@@ -188,8 +188,8 @@ class BaseTestScene(abc.ABC):
         self.add_test_objects()
 
         # self._run_simulate()
-        
-        # self.shift_scene(shift)
+        self._random_rotate_scene()
+
         if self.is_move_camera:
             traj_idx = random.randint(0, len(self.camera_path_config)-1)
             self._set_camera_path(self.camera_path_config[traj_idx])
@@ -198,6 +198,10 @@ class BaseTestScene(abc.ABC):
         else:
             self.scene.camera.position = self.default_camera_pos
             self.scene.camera.look_at(self.camera_look_at)
+
+        if not use_indoor:
+            # the hdri center texture is wired, shift to avoid
+            self.shift_scene([0,5,0])
 
         if self.render_speedup:
             self._set_fast_rendering()
@@ -422,9 +426,28 @@ class BaseTestScene(abc.ABC):
         print("Setting up the Camera...")
         self._add_camera(scene)
 
-        # each scene has a different camera setup, depending on the scene
-        scene.camera.position = (0, -3, 1.7) # height 1.7, away 2m
-        scene.camera.look_at((0, 0, 1))
+        if self.is_add_table: 
+            logging.info("Adding table to the scene")
+            table_id = rng.choice(self.shapenet_table_ids)
+            table = shapenet_assets.create(asset_id=table_id, static=True, name=self.table_name)
+            # table_obj_id = self.shapenet_table_ids[0]#rng.choice(self.shapenet_table_ids)
+            # table = self.add_object(assed_id=self.shapenet_table_ids[0], name=self.table_name)
+            self.table = table
+            table.metadata["is_dynamic"] = False
+            table.scale = [self.table_scale] * 3
+            table.quaternion = kb.Quaternion(axis=[1, 0, 0], degrees=90)
+            table.position = table.position - (0, 0, table.aabbox[0][2])  
+            table_h = table.aabbox[1][2] - table.aabbox[0][2]
+            scene.add(table)
+            set_name(self.table_name)
+            self.ref_h = table_h
+            self.table_id = table_id
+            # self.default_camera_pos[2] += table_h
+            # self.camera_look_at = [0, 0, self.ref_h]
+
+        # # each scene has a different camera setup, depending on the scene
+        # scene.camera.position = (0, -3, 1.7) # height 1.7, away 2m
+        # scene.camera.look_at((0, 0, 1))
 
         self.scene = scene
         self.simulator = simulator
@@ -470,7 +493,7 @@ class BaseTestScene(abc.ABC):
         bpy.data.objects[self.floor_name].hide_viewport = True
 
 
-        if self.add_table: 
+        if self.is_add_table: 
             logging.info("Adding table to the scene")
             table_id = rng.choice(self.shapenet_table_ids)
             table = shapenet_assets.create(asset_id=table_id, static=True, name=self.table_name)
@@ -487,7 +510,7 @@ class BaseTestScene(abc.ABC):
             self.ref_h = table_h
             self.default_camera_pos[2] += table_h
             self.table_id = table_id
-            print(self.table_id)
+            # print(self.table_id)
             self.camera_look_at = [0, 0, self.ref_h]
        
         self.rng = rng
@@ -589,6 +612,7 @@ class BaseTestScene(abc.ABC):
             # account for the gravity
             restituion_scale = -self.gravity[2] / 9.8
             obj.restitution *= restituion_scale
+            obj.friction = 1.0
         else:
             # make the object static
             obj.friction = 1.0
@@ -645,6 +669,7 @@ class BaseTestScene(abc.ABC):
         return data_stack
         
     def write_metadata(self):
+        
         logging.info("Collecting and storing metadata for each object.")
         # return
         kb.write_json(filename=self.output_dir / "metadata.json", data={
@@ -653,6 +678,7 @@ class BaseTestScene(abc.ABC):
             "camera": kb.get_camera_info(self.scene.camera),
             "instances": kb.get_instance_info(self.scene),
             "table_id": self.table_id
+
         })
 
     def change_output_dir(self, new_output_dir):
@@ -672,7 +698,8 @@ class BaseTestScene(abc.ABC):
 
         """
         for _ in range(n_obj):
-            self.add_object(is_dynamic=False)
+            # self.add_object(is_dynamic=False)
+            self.add_object()
             
         logging.info("Running 100 frames of simulation to let static objects settle ...")
         _, _ = self.simulator.run(frame_start=-100, frame_end=0)

@@ -38,18 +38,17 @@ def get_args():
   parser.set_defaults(save_state=False, frame_end=36, frame_rate=12,
                       resolution="512x512")
   
-  # parser.add_argument("--debug", type=txt2bool, default=False, action="store_true")
-  parser.add_argument("--debug", type=txt2bool, default=False)
+  parser.add_argument("--debug", default=False, action="store_true")
 
-  parser.add_argument("--generate_violation", type=txt2bool, default=True) # generate violation results
+  parser.add_argument("--generate_violation", type=bool, default=False) # generate violation results
   # parser.add_argument("--render_both_results", type=txt2bool, default=True) # render both violation and non-violation results
 
   parser.add_argument("--move_camera", type=bool, default=True) # move camera
   parser.add_argument("--scene_type", type=str, default="indoor") # scene type indoor | hdri | both
   
-  parser.add_argument("--save_states", type=bool, default=False) # save blender states
-  parser.add_argument("--render_non_violate_video", type=bool, default=False) # render videos
-  parser.add_argument("--render_violate_video", type=bool, default=True) # render videos
+  parser.add_argument("--save_states", action="store_true", default=False) # save blender states
+  parser.add_argument("--render_non_violate_video", action="store_true", default=False) # render videos
+  parser.add_argument("--render_violate_video", action="store_true", default=False) # render videos
 
   FLAGS = parser.parse_args()
 

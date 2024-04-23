@@ -31,13 +31,14 @@ class CollisionTestScene(BaseTestScene):
 
         # look at a fixed height
         # self.scene.camera.position = (0, -5, 1.7)
-        self.default_camera_pos = spherical_to_cartesian(r_range=[2.5, 3], theta_range=[89, 91], phi_range=[-5, 5]) # (0, -1, 1.7)
+        # self.default_camera_pos = spherical_to_cartesian(r_range=[2.5, 3], theta_range=[89, 91], phi_range=[-5, 5]) # (0, -1, 1.7)
         self.camera_look_at = [0, 0, self.collision_height]
-        self.default_camera_pos[2] += self.collision_height
+        # self.default_camera_pos[2] += self.collision_height
+        self.default_camera_pos = [0, -4, 1.7]
 
         self.is_move_camera = False
         self.is_add_block_objects = False
-        self.add_table = False
+        self.is_add_table = True
         
         
     def prepare_scene(self):

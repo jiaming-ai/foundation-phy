@@ -29,9 +29,9 @@ def main() -> None:
     )
 
     num_per_cls = 100
-    max_trails = 5
+    max_trails = 1
     test_cls_all = {
-        "solidity": SolidityTestScene,
+        # "solidity": SolidityTestScene,
         "collision": CollisionTestScene,
         # "Permanance": PermananceTestScene ,
         # "Continuity": ContinuityTestScene,

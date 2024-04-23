@@ -7,45 +7,47 @@ import abc
 from utils import spherical_to_cartesian, getVisibleVertexFraction
 import bpy
 
-class SolidityTestScene(BaseTestScene):
-    """Test scene for solidity violation.
+class CollisionScene(BaseTestScene):
+    """Test scene for collision violation.
     Start: OBJ1 and OBJ2 collide with each other in the air while falling down. OBJ1's velocity is vertical towards ground,
     and OBJ2's velocity is towards OBJ1.
     Normal result: the trajectory of OBJ1 and OBJ2 should follow the laws of physics.
-    Violation: OBJ1 and OBJ2 pass through each other without collision.
+    Violation: the horizontal velocity of both OBJ disappears, and they fall straight down.
 
-    CAMERA not moving
     Args:
         BaseTestScene (_type_): _description_
     """
     
     def __init__(self, FLAGS) -> None:
+        
         super().__init__(FLAGS)
-        self.gravity = [0, 0, -2.8]
         # collision parameters
-        self.violation_time = 1 # second before collision
-        self.collision_xy_distance = 1.1 # distance between obj_1 and obj_2 in xy plane
+        self.first_collision_frame = 0
+        self.violation_time = 1.0 # second before collision
+        self.collision_xy_distance = 2.2 # distance between obj_1 and obj_2 in xy plane
         self.collision_z_distance = 0.1 # distance between obj_1 and obj_2 in z direction
         self.collision_height = 1.2
+        self.gravity = [0, 0, -2.8]
 
-
-        self.default_camera_pos = spherical_to_cartesian(r_range=[2.5, 3], theta_range=[89, 91], phi_range=[-5, 5]) # (0, -1, 1.7)
+        # look at a fixed height
+        # self.scene.camera.position = (0, -5, 1.7)
+        # self.default_camera_pos = spherical_to_cartesian(r_range=[2.5, 3], theta_range=[89, 91], phi_range=[-5, 5]) # (0, -1, 1.7)
         self.camera_look_at = [0, 0, self.collision_height]
-        self.default_camera_pos[2] += self.collision_height + 1.2
+        # self.default_camera_pos[2] += self.collision_height
+        self.default_camera_pos = [0, -5, 1.7]
 
         self.is_move_camera = False
         self.is_add_block_objects = False
-        self.is_add_table = False
+        self.is_add_table = True
         
-
+        
     def prepare_scene(self):
         super().prepare_scene()
         self.scene.gravity = self.gravity
 
-        # look at a fixed height
+        # # look at a fixed height
         # self.scene.camera.position = (0, -5, 1.7)
-        self.scene.camera.look_at([0, 0, self.collision_height])
-
+        # self.scene.camera.look_at([0, 0, self.collision_height])
 
     def generate_keyframes(self):
         """Generate keyframes for the objects, for both violation and non-violation states
@@ -53,8 +55,8 @@ class SolidityTestScene(BaseTestScene):
         
         # following the laws of physics
         _, collisions = self._run_simulate()
-        self.save_non_violation_scene()
 
+        self.save_non_violation_scene()
 
         if self.flags.save_states:
             fname = "non_violation.blend"
@@ -64,28 +66,42 @@ class SolidityTestScene(BaseTestScene):
             self.renderer.save_state(full_path)
             
         if self.flags.generate_violation:
-            logging.info("Violating the laws of physics")
-            
-            # first get the initial states of both objects
-            init_states = []
-            for obj in self.test_obj:
-                init_states.append(self.get_object_state_at_frame(obj, 0))
-                
-            # simulate both trajectories separately, and save the states
-            trajectories = []
-            for i, obj in enumerate(self.test_obj):
-                # set other objects static except the current object
-                self.set_test_objects_static()
-                obj.static = False 
-                self.set_object_state(obj, init_states[i])
-                _, collisions = self._run_simulate()
-                obj_trajectory = self.get_object_keyframes(obj)
-                trajectories.append(obj_trajectory)
+            logging.info("Generating scene with violation of laws of physics")
 
-            for i, obj in enumerate(self.test_obj):
-                self.set_object_keyframes(obj, trajectories[i])
+            # find the first collision frame
+            first_collision_frame = 0
+            for i in range(len(collisions)):
+                instances = collisions[i]['instances']
+                if len(instances) == 2:
+                    if instances[0] in self.test_obj and instances[1] in self.test_obj:
+                        first_collision_frame = collisions[i]['frame']
+                        break
+            if first_collision_frame == 0:
+                raise RuntimeError("No collision detected")
+
+            self.first_collision_frame = first_collision_frame
+            logging.debug(f"first_collision_frame: {first_collision_frame}")
+            
+            # make the objects fall straight down after the collision
+            for obj in self.test_obj:
+                # linear interpolation
+                xyz = obj.get_value_at("position", first_collision_frame, interpolation="linear").copy()
                 
-            self.set_test_objects_dynamic()
+                for frame in range(int(first_collision_frame), self.scene.frame_end+1):
+                    # set xy velocity to 0
+                    vel = obj.keyframes["velocity"][frame].copy()
+                    vel[0] = 0
+                    vel[1] = 0
+                    obj.velocity = vel
+                    obj.keyframe_insert("velocity", frame)
+
+                    # set xy position to the same as the collision frame
+                    pos = obj.keyframes["position"][frame].copy()
+                    pos[0] = xyz[0]
+                    pos[1] = xyz[1]
+                    obj.position = pos
+                    obj.keyframe_insert("position", frame)
+                    
             self.save_violation_scene()
             
             if self.flags.save_states:
@@ -128,32 +144,21 @@ class SolidityTestScene(BaseTestScene):
         vel_2_xyz = [vel_2_xy[0], vel_2_xy[1], vel_2_z]
         
         # random select two objects, consider the exclusion list
-        obj_1_id = self.rng.choice(self.big_object_asset_id_list)
+        obj_1_id = self.rng.choice(self.small_object_asset_id_list)
         obj_1 = self.add_object(asset_id=obj_1_id,
                                            position=pos_1, 
                                            velocity=vel_1_xyz,
-                                           scale=1.2, 
-                                           name="small_obj")
+                                           scale=1.0, 
+                                           name="small_obj") # 1.8
         
         obj_2_id = self.rng.choice(self.big_object_asset_id_list)
         obj_2 = self.add_object(asset_id=obj_2_id,
                                            position=pos_2, 
                                            velocity=vel_2_xyz,
                                            scale=1.2, 
-                                           name="big_obj")
+                                           name="big_obj") # 2.8
         
         self.test_obj = [obj_1, obj_2]
         
         return obj_1, obj_2
-
-    def _check_scene(self):
-        # check if the test object is blocked by the scene at the test frame
-        frame_violation_start = int(self.flags.frame_rate * self.violation_time)
-        for i in range(frame_violation_start-2, frame_violation_start+5):
-            bpy.context.scene.frame_set(i)
-            small_obj_visibility = getVisibleVertexFraction("small_obj", self.rng)
-            big_obj_visibility = getVisibleVertexFraction("big_obj", self.rng)
-            print(small_obj_visibility, big_obj_visibility)
-            if small_obj_visibility <= 0.8 or big_obj_visibility <= 0.8:
-                return False        
-        return True
+    
