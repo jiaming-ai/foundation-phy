@@ -70,6 +70,7 @@ class BaseTestScene(abc.ABC):
         self.gravity = (0, 0, -9.81)
 
         self.dynamic_objs = []
+        self.static_objs = []
         self.block_obj = None
         self.ref_h = 0
         self.table_scale = 2
@@ -339,6 +340,7 @@ class BaseTestScene(abc.ABC):
         self.i = 0
         while True:
             self.dynamic_objs = []
+            self.static_objs = []
                 
             self._setup_everything()
             if self._check_scene():
@@ -670,6 +672,14 @@ class BaseTestScene(abc.ABC):
         
     def write_metadata(self):
         
+        # for gso, object name can be inferred from asset_id
+        test_obj_names = [obj.asset_id for obj in self.test_obj]
+        dynamic_obj_names = [obj.asset_id for obj in self.dynamic_objs]
+        static_obj_names = [obj.asset_id for obj in self.static_objs]
+
+        block_obj_name = self.block_obj.asset_id if self.block_obj is not None else None
+        table_asset_id = self.table_id if self.table_id is not None else None
+
         logging.info("Collecting and storing metadata for each object.")
         # return
         kb.write_json(filename=self.output_dir / "metadata.json", data={
@@ -677,7 +687,11 @@ class BaseTestScene(abc.ABC):
             "metadata": kb.get_scene_metadata(self.scene),
             "camera": kb.get_camera_info(self.scene.camera),
             "instances": kb.get_instance_info(self.scene),
-            "table_id": self.table_id
+            "test_obj": test_obj_names,
+            "dynamic_objs": dynamic_obj_names,
+            "static_objs": static_obj_names,
+            "block_obj": block_obj_name,
+            "table": table_asset_id,
 
         })
 
@@ -699,7 +713,9 @@ class BaseTestScene(abc.ABC):
         """
         for _ in range(n_obj):
             # self.add_object(is_dynamic=False)
-            self.add_object()
+            obj = self.add_object()
+            self.static_objs.append(obj)
+
             
         logging.info("Running 100 frames of simulation to let static objects settle ...")
         _, _ = self.simulator.run(frame_start=-100, frame_end=0)

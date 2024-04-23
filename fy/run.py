@@ -28,8 +28,8 @@ def main() -> None:
         ]
     )
 
-    num_per_cls = 100
-    max_trails = 1
+    num_per_cls = 1000
+    max_trails = 5000
     test_cls_all = {
         # "solidity": SolidityTestScene,
         "collision": CollisionTestScene,
