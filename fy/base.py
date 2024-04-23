@@ -157,8 +157,10 @@ class BaseTestScene(abc.ABC):
 
     def _setup_everything(self, shift=[0, 5, 0]):
 
-        if self.flags.use_indoor_only:
+        if self.flags.scene_type == "indoor":
             use_indoor = True
+        elif self.flags.scene_type == "hdri":
+            use_indoor = False
         else:
             rnd_n = random.random()
             use_indoor = rnd_n < 0.5
@@ -529,26 +531,6 @@ class BaseTestScene(abc.ABC):
             obj.position = np.array(obj.position) + shift
         self.scene.camera.position = np.array(self.scene.camera.position) + shift
         
-    # def add_static_object(self, n_obj:int = 1):
-        
-    #     logging.info("Randomly placing %d static objects:", n_obj)
-    #     for i in range(n_obj):
-    #         obj = self.gso.create(asset_id=self.rng.choice(self.object_asset_id_list))
-    #         assert isinstance(obj, kb.FileBasedObject)
-    #         scale = 2
-    #         obj.scale = scale
-    #         obj.metadata["scale"] = scale
-    #         self.scene += obj
-    #         kb.move_until_no_overlap(obj, self.simulator, spawn_region=STATIC_SPAWN_REGION,
-    #                                 rng=self.rng)
-    #         obj.friction = 1.0
-    #         obj.restitution = 0.0
-    #         obj.metadata["is_dynamic"] = False
-    #         logging.info("    Added %s at %s", obj.asset_id, obj.position)
-
-    #     logging.info("Running 100 frames of simulation to let static objects settle ...")
-    #     _, _ = self.simulator.run(frame_start=-100, frame_end=0)
-
     def add_object(self, 
                    asset_id=None, 
                    position=None, 

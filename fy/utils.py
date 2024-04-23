@@ -45,17 +45,18 @@ def get_args():
   # parser.add_argument("--render_both_results", type=txt2bool, default=True) # render both violation and non-violation results
 
   parser.add_argument("--move_camera", type=bool, default=True) # move camera
-  parser.add_argument("--use_indoor_only", type=bool, default=True)
+  parser.add_argument("--scene_type", type=str, default="indoor") # scene type indoor | hdri | both
   
   parser.add_argument("--save_states", type=bool, default=False) # save blender states
-  parser.add_argument("--render_video", type=bool, default=False) # render videos
+  parser.add_argument("--render_non_violate_video", type=bool, default=False) # render videos
+  parser.add_argument("--render_violate_video", type=bool, default=True) # render videos
 
   FLAGS = parser.parse_args()
 
   if FLAGS.debug:
     FLAGS.logging_level = logging.DEBUG
     FLAGS.save_states = True
-    FLAGS.render_video = True
+    # FLAGS.render_video = True
     print("Debug mode is on")
     
   else:
