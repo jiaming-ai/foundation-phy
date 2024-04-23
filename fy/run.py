@@ -13,7 +13,7 @@ from fy.continuity import ContinuityTestScene
 from fy.support import SupportTestScene
 import os
 import time
-
+from fy.collision_free_fall import CollisionScene
 def main() -> None:
     FLAGS = get_args()
 
@@ -32,7 +32,8 @@ def main() -> None:
     max_trails = 5000
     test_cls_all = {
         # "solidity": SolidityTestScene,
-        "collision": CollisionTestScene,
+        # "collision": CollisionTestScene,
+        "collision_free_fall": CollisionScene,
         # "Permanance": PermananceTestScene ,
         # "Continuity": ContinuityTestScene,
         # "Support": SupportTestScene,

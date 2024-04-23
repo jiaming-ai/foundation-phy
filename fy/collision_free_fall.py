@@ -2,6 +2,7 @@
 
 from fy.base import BaseTestScene
 import numpy as np
+import random
 import logging
 import abc
 from utils import spherical_to_cartesian, getVisibleVertexFraction
@@ -38,8 +39,11 @@ class CollisionScene(BaseTestScene):
 
         self.is_move_camera = False
         self.is_add_block_objects = False
-        self.is_add_table = True
+
+        # randomly choose to add a table or not
         
+
+        self.is_add_table = random.choice([True, False])
         
     def prepare_scene(self):
         super().prepare_scene()
