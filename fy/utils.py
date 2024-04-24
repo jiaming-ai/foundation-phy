@@ -50,6 +50,10 @@ def get_args():
   parser.add_argument("--render_non_violate_video", action="store_true", default=False) # render videos
   parser.add_argument("--render_violate_video", action="store_true", default=False) # render videos
 
+  parser.add_argument("--num_per_cls", type=int, default=1) # number of videos per class
+  parser.add_argument("--max_trails", type=int, default=10000) # number of maximum trails
+  parser.add_argument("--test_scene_cls",nargs='+', required=True) # test scenes
+  
   FLAGS = parser.parse_args()
 
   if FLAGS.debug:

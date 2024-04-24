@@ -14,6 +14,15 @@ from fy.support import SupportTestScene
 import os
 import time
 from fy.collision_free_fall import CollisionScene
+
+SCENE_MAPPING = {
+    "solidity": SolidityTestScene,
+    "collision": CollisionTestScene,
+    "Permanance": PermananceTestScene,
+    "Continuity": ContinuityTestScene,
+    "Support": SupportTestScene,
+    "collision_free_fall": CollisionScene,
+}
 def main() -> None:
     FLAGS = get_args()
 
@@ -28,17 +37,19 @@ def main() -> None:
         ]
     )
 
-    num_per_cls = 1000
-    max_trails = 5000
-    test_cls_all = {
-        # "solidity": SolidityTestScene,
-        # "collision": CollisionTestScene,
-        "collision_free_fall": CollisionScene,
-        # "Permanance": PermananceTestScene ,
-        # "Continuity": ContinuityTestScene,
-        # "Support": SupportTestScene,
+    num_per_cls = FLAGS.num_per_cls #1000
+    max_trails = FLAGS.max_trails #1000
+    test_cls_all = { name: SCENE_MAPPING[name] for name in FLAGS.test_scene_cls}
+    
+    # test_cls_all = {
+    #     # "solidity": SolidityTestScene,
+    #     # "collision": CollisionTestScene,
+    #     "collision_free_fall": CollisionScene,
+    #     # "Permanance": PermananceTestScene ,
+    #     # "Continuity": ContinuityTestScene,
+    #     # "Support": SupportTestScene,
 
-    }
+    # }
     for test_name, test_cls in test_cls_all.items():
         # check if exist rendered test in the output folder
         # if exist, start from the last one
