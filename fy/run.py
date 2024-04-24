@@ -80,7 +80,7 @@ def generate_test_scene(test_class, FLAGS,output_dir) -> None:
             logging.info("Rendering the violation video")
             start_time = time.time()
             test_scene.render(save_to_file=True)
-            write_video(output_dir + "violation/", output_dir + "violation.mp4")
+            # write_video(output_dir + "violation/", output_dir + "violation.mp4")
             logging.info(f"Rendering the violation video took {time.time() - start_time} seconds")
 
         # load the non-violation state and render it
@@ -93,7 +93,7 @@ def generate_test_scene(test_class, FLAGS,output_dir) -> None:
             logging.info("Rendering the non-violation video")
             start_time = time.time()
             test_scene.render(save_to_file=True)
-            write_video(output_dir + "non_violation/", output_dir + "non_violation.mp4")
+            # write_video(output_dir + "non_violation/", output_dir + "non_violation.mp4")
             logging.info(f"Rendering the non-violation video took {time.time() - start_time} seconds")
 
 if __name__ == "__main__":
