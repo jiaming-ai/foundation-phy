@@ -36,7 +36,7 @@ class SolidityTestScene(BaseTestScene):
 
         self.is_move_camera = False
         self.is_add_block_objects = False
-        self.add_table = False
+        self.is_add_table = False
         
 
     def prepare_scene(self):

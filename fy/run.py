@@ -12,7 +12,8 @@ from fy.permanance import PermananceTestScene
 from fy.continuity import ContinuityTestScene
 from fy.support import SupportTestScene
 import os
-
+import time
+from fy.collision_free_fall import CollisionScene
 def main() -> None:
     FLAGS = get_args()
 
@@ -27,14 +28,15 @@ def main() -> None:
         ]
     )
 
-    num_per_cls = 100
-    max_trails = 150
+    num_per_cls = 1000
+    max_trails = 5000
     test_cls_all = {
         # "solidity": SolidityTestScene,
         # "collision": CollisionTestScene,
+        "collision_free_fall": CollisionScene,
         # "Permanance": PermananceTestScene ,
-        "Continuity": ContinuityTestScene,
-        "Support": SupportTestScene,
+        # "Continuity": ContinuityTestScene,
+        # "Support": SupportTestScene,
 
     }
     for test_name, test_cls in test_cls_all.items():
@@ -74,11 +76,12 @@ def generate_test_scene(test_class, FLAGS,output_dir) -> None:
         # render the violation state
         test_scene.change_output_dir( output_dir + "violation" )
 
-        # igore rendering if debug is on
-        if FLAGS.render_video:
+        if FLAGS.render_violate_video:
             logging.info("Rendering the violation video")
+            start_time = time.time()
             test_scene.render(save_to_file=True)
             write_video(output_dir + "violation/", output_dir + "violation.mp4")
+            logging.info(f"Rendering the violation video took {time.time() - start_time} seconds")
 
         # load the non-violation state and render it
         logging.info("Loading the non-violation state")
@@ -86,10 +89,12 @@ def generate_test_scene(test_class, FLAGS,output_dir) -> None:
         test_scene.change_output_dir( output_dir + "non_violation" )
 
         # igore rendering if debug is on
-        if FLAGS.render_video:
+        if FLAGS.render_non_violate_video:
             logging.info("Rendering the non-violation video")
+            start_time = time.time()
             test_scene.render(save_to_file=True)
             write_video(output_dir + "non_violation/", output_dir + "non_violation.mp4")
+            logging.info(f"Rendering the non-violation video took {time.time() - start_time} seconds")
 
 if __name__ == "__main__":
     main()
