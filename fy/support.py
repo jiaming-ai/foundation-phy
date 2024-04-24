@@ -27,7 +27,7 @@ class SupportTestScene(BaseTestScene):
         self.frame_violation_start = 10
         self.initial_dist_to_table = 0
         # 1: float in air; 0: pass through table
-        self.violation_type = 1#np.random.binomial(n=1,p=0.5)
+        self.violation_type = np.random.binomial(n=1,p=0.5)
         self.gravity = [0, 0, -1.5]
         self.is_move_camera = False
 
