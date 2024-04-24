@@ -2,12 +2,13 @@
 
 from fy.base import BaseTestScene
 import numpy as np
+import random
 import logging
 import abc
 from utils import spherical_to_cartesian, getVisibleVertexFraction
 import bpy
 
-class CollisionTestScene(BaseTestScene):
+class CollisionScene(BaseTestScene):
     """Test scene for collision violation.
     Start: OBJ1 and OBJ2 collide with each other in the air while falling down. OBJ1's velocity is vertical towards ground,
     and OBJ2's velocity is towards OBJ1.
@@ -24,30 +25,29 @@ class CollisionTestScene(BaseTestScene):
         # collision parameters
         self.first_collision_frame = 0
         self.violation_time = 1.0 # second before collision
-        self.collision_xy_distance = 2.2 # distance between obj_1 and obj_2 in xy plane
+        self.collision_xy_distance = 1.8 # distance between obj_1 and obj_2 in xy plane
         self.collision_z_distance = 0.1 # distance between obj_1 and obj_2 in z direction
         self.collision_height = 1.2
         self.gravity = [0, 0, -2.8]
 
-        # look at a fixed height
-        # self.scene.camera.position = (0, -5, 1.7)
-        # self.default_camera_pos = spherical_to_cartesian(r_range=[2.5, 3], theta_range=[89, 91], phi_range=[-5, 5]) # (0, -1, 1.7)
-        self.camera_look_at = [0, 0, self.collision_height]
-        # self.default_camera_pos[2] += self.collision_height
-        self.default_camera_pos = [0, -4, 1.7]
+        # self.camera_look_at = [0, 0, self.collision_height]
+        # if self.flags.scene_type == "indoor":
+        #     self.default_camera_pos = spherical_to_cartesian(r_range=[2.5, 3], theta_range=[89, 91], phi_range=[-5, 5]) # (0, -1, 1.7)
+        #     self.default_camera_pos[2] += self.collision_height
+        # else:
+        #     self.default_camera_pos = [0, -4, 1.7]
 
         self.is_move_camera = False
         self.is_add_block_objects = False
-        self.is_add_table = True
-        
+
         
     def prepare_scene(self):
-        super().prepare_scene()
-        self.scene.gravity = self.gravity
 
-        # # look at a fixed height
-        # self.scene.camera.position = (0, -5, 1.7)
-        # self.scene.camera.look_at([0, 0, self.collision_height])
+        # randomly choose to add a table or not
+        self.is_add_table = random.choice([True, False])
+        # if self.flags.scene_type == "indoor":
+        #     self.is_add_table = True
+        super().prepare_scene()
 
     def generate_keyframes(self):
         """Generate keyframes for the objects, for both violation and non-violation states
@@ -80,7 +80,6 @@ class CollisionTestScene(BaseTestScene):
                 raise RuntimeError("No collision detected")
 
             self.first_collision_frame = first_collision_frame
-            self.frame_violation_start = self.first_collision_frame
             logging.debug(f"first_collision_frame: {first_collision_frame}")
             
             # make the objects fall straight down after the collision
@@ -149,30 +148,17 @@ class CollisionTestScene(BaseTestScene):
         obj_1 = self.add_object(asset_id=obj_1_id,
                                            position=pos_1, 
                                            velocity=vel_1_xyz,
-                                           scale=1.0, 
+                                           scale=1.8, 
                                            name="small_obj") # 1.8
         
         obj_2_id = self.rng.choice(self.big_object_asset_id_list)
         obj_2 = self.add_object(asset_id=obj_2_id,
                                            position=pos_2, 
                                            velocity=vel_2_xyz,
-                                           scale=1.2, 
+                                           scale=2.8, 
                                            name="big_obj") # 2.8
         
         self.test_obj = [obj_1, obj_2]
-        self.test_obj_id = [obj_1_id, obj_2_id]
-
+        
         return obj_1, obj_2
     
-    def _check_scene(self):
-        # check if the test object is blocked by the scene at the test frame
-        for i in range(self.first_collision_frame-2, min(self.flags.frame_end, self.first_collision_frame+4)):
-            bpy.context.scene.frame_set(i)
-            small_obj_visibility = getVisibleVertexFraction("small_obj", self.rng)
-            big_obj_visibility = getVisibleVertexFraction("big_obj", self.rng)
-            print(small_obj_visibility, big_obj_visibility)
-            if small_obj_visibility <= 0.8 or big_obj_visibility <= 0.8:
-                return False        
-        return True
-
-        

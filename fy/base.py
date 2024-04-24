@@ -19,8 +19,8 @@ from bpy import context as C
 
 # --- Some configuration values
 # the region in which to place objects [(min), (max)]
-STATIC_SPAWN_REGION = [(-4, -1, 0), (4, 7, 10)] # for static objects
-DYNAMIC_SPAWN_REGION = [(-5, -5, 1), (5, 5, 5)]
+STATIC_SPAWN_REGION = [(-1, -1, 0), (1, 1, 5)] # for static objects
+DYNAMIC_SPAWN_REGION = [(-1, -1, 1), (1, 1, 5)]
 VELOCITY_RANGE = [(-4., -4., 0.), (4., 4., 0.)]
 
 SCENE_EXCLUDE = ["wobbly_bridge"]
@@ -70,6 +70,7 @@ class BaseTestScene(abc.ABC):
         self.gravity = (0, 0, -9.81)
 
         self.dynamic_objs = []
+        self.static_objs = []
         self.block_obj = None
         self.ref_h = 0
         self.table_scale = 2
@@ -153,28 +154,33 @@ class BaseTestScene(abc.ABC):
         self.cur_camera_traj_idx = None
         self.is_add_block_objects = True
         self.is_move_camera = FLAGS.move_camera
-        self.add_table = True
+        self.is_add_table = True
         self.table_id = None
         self.is_add_background_static_objects = True
         self.is_add_background_dynamic_objects = True
         
         self.object_asset_id_list = self.gso.all_asset_ids
 
-    def _setup_everything(self, shift=[0, 5, 0]):
+    def _setup_everything(self):
 
-        if self.flags.use_indoor_only:
+        if self.flags.scene_type == "indoor":
             use_indoor = True
+        elif self.flags.scene_type == "hdri":
+            use_indoor = False
         else:
             rnd_n = random.random()
             use_indoor = 0#rnd_n < 0.5
         
         if use_indoor:
             self._setup_indoor_scene()
+            # indoor scene should not add dynamic objects, because the scene is not in simulation state
+            self.is_add_background_dynamic_objects = False
         else:
             self._setup_hdri_scene()
             self.ref_h = 0
+            # for hdri scene
+            self.is_add_background_dynamic_objects = True
 
-        self._random_rotate_scene()
         self.scene.gravity = self.gravity
 
         if self.flags.debug:
@@ -191,8 +197,8 @@ class BaseTestScene(abc.ABC):
         self.add_test_objects()
 
         # self._run_simulate()
-        
-        # self.shift_scene(shift)
+        self._random_rotate_scene()
+
         if self.is_move_camera:
             traj_idx = random.randint(0, len(self.camera_path_config)-1)
             self._set_camera_path(self.camera_path_config[traj_idx])
@@ -201,6 +207,10 @@ class BaseTestScene(abc.ABC):
         else:
             self.scene.camera.position = self.default_camera_pos
             self.scene.camera.look_at(self.camera_look_at)
+
+        if not use_indoor:
+            # the hdri center texture is wired, shift to avoid
+            self.shift_scene([0,5,0])
 
         if self.render_speedup:
             self._set_fast_rendering()
@@ -338,6 +348,7 @@ class BaseTestScene(abc.ABC):
         # self.i = 0
         while True:
             self.dynamic_objs = []
+            self.static_objs = []
                 
             self._setup_everything()
             if self._check_scene():
@@ -425,9 +436,31 @@ class BaseTestScene(abc.ABC):
         print("Setting up the Camera...")
         self._add_camera(scene)
 
-        # each scene has a different camera setup, depending on the scene
-        scene.camera.position = (0, -3, 1.7) # height 1.7, away 2m
-        scene.camera.look_at((0, 0, 1))
+        # default camera lookat for hdri scene
+        self.camera_look_at = [0, 0, 1.2]
+        self.default_camera_pos = [0, -4, 1.5]
+        if self.is_add_table: 
+            logging.info("Adding table to the scene")
+            table_id = rng.choice(self.shapenet_table_ids)
+            table = shapenet_assets.create(asset_id=table_id, static=True, name=self.table_name)
+            # table_obj_id = self.shapenet_table_ids[0]#rng.choice(self.shapenet_table_ids)
+            # table = self.add_object(assed_id=self.shapenet_table_ids[0], name=self.table_name)
+            self.table = table
+            table.metadata["is_dynamic"] = False
+            table.scale = [self.table_scale] * 3
+            table.quaternion = kb.Quaternion(axis=[1, 0, 0], degrees=90)
+            table.position = table.position - (0, 0, table.aabbox[0][2])  
+            table_h = table.aabbox[1][2] - table.aabbox[0][2]
+            scene.add(table)
+            set_name(self.table_name)
+            self.ref_h = table_h
+            self.table_id = table_id
+            # self.default_camera_pos[2] += table_h
+            # self.camera_look_at = [0, 0, self.ref_h]
+
+        # # each scene has a different camera setup, depending on the scene
+        # scene.camera.position = (0, -3, 1.7) # height 1.7, away 2m
+        # scene.camera.look_at((0, 0, 1))
 
         self.scene = scene
         self.simulator = simulator
@@ -457,8 +490,8 @@ class BaseTestScene(abc.ABC):
         self.load_blender_scene(blender_scene)
         self._add_camera(self.scene)
 
-        self.scene.camera.position = self.default_camera_pos
-        self.scene.camera.look_at(self.camera_look_at)
+        # self.scene.camera.position = self.default_camera_pos
+        # self.scene.camera.look_at(self.camera_look_at)
 
         # add floor to the scene
         logging.info("Adding floor to the scene")
@@ -473,7 +506,9 @@ class BaseTestScene(abc.ABC):
         bpy.data.objects[self.floor_name].hide_viewport = True
 
 
-        if self.add_table: 
+        self.default_camera_pos = [0, -1.8, 1]
+        self.camera_look_at = [0, 0, 0.3]
+        if self.is_add_table: 
             logging.info("Adding table to the scene")
             table_id = rng.choice(self.shapenet_table_ids)
             table = shapenet_assets.create(asset_id=table_id, static=True, name=self.table_name)
@@ -490,7 +525,7 @@ class BaseTestScene(abc.ABC):
             self.ref_h = table_h
             self.default_camera_pos[2] += table_h
             self.table_id = table_id
-            print(self.table_id)
+            # print(self.table_id)
             self.camera_look_at = [0, 0, self.ref_h]
        
         self.rng = rng
@@ -534,26 +569,6 @@ class BaseTestScene(abc.ABC):
             obj.position = np.array(obj.position) + shift
         self.scene.camera.position = np.array(self.scene.camera.position) + shift
         
-    # def add_static_object(self, n_obj:int = 1):
-        
-    #     logging.info("Randomly placing %d static objects:", n_obj)
-    #     for i in range(n_obj):
-    #         obj = self.gso.create(asset_id=self.rng.choice(self.object_asset_id_list))
-    #         assert isinstance(obj, kb.FileBasedObject)
-    #         scale = 2
-    #         obj.scale = scale
-    #         obj.metadata["scale"] = scale
-    #         self.scene += obj
-    #         kb.move_until_no_overlap(obj, self.simulator, spawn_region=STATIC_SPAWN_REGION,
-    #                                 rng=self.rng)
-    #         obj.friction = 1.0
-    #         obj.restitution = 0.0
-    #         obj.metadata["is_dynamic"] = False
-    #         logging.info("    Added %s at %s", obj.asset_id, obj.position)
-
-    #     logging.info("Running 100 frames of simulation to let static objects settle ...")
-    #     _, _ = self.simulator.run(frame_start=-100, frame_end=0)
-
     def add_object(self, 
                    asset_id=None, 
                    position=None, 
@@ -605,13 +620,12 @@ class BaseTestScene(abc.ABC):
             kb.move_until_no_overlap(obj, self.simulator, spawn_region=STATIC_SPAWN_REGION,
                                     rng=self.rng)
 
-        # temporarily set false 
-        # to mitigate error "'XXXTestScene' object has no attribute 'gravity'"
         if is_dynamic: 
             # reduce the restitution of the object to make it less bouncy
             # account for the gravity
             restituion_scale = -self.gravity[2] / 9.8
             obj.restitution *= restituion_scale
+            obj.friction = 1.0
         else:
             # make the object static
             obj.friction = 1.0
@@ -668,6 +682,15 @@ class BaseTestScene(abc.ABC):
         return data_stack
         
     def write_metadata(self):
+        
+        # for gso, object name can be inferred from asset_id
+        test_obj_names = [obj.asset_id for obj in self.test_obj]
+        dynamic_obj_names = [obj.asset_id for obj in self.dynamic_objs]
+        static_obj_names = [obj.asset_id for obj in self.static_objs]
+
+        block_obj_name = self.block_obj.asset_id if self.block_obj is not None else None
+        table_asset_id = self.table_id if self.table_id is not None else None
+
         logging.info("Collecting and storing metadata for each object.")
         # return
         kb.write_json(filename=self.output_dir / "metadata.json", data={
@@ -675,13 +698,12 @@ class BaseTestScene(abc.ABC):
             "metadata": kb.get_scene_metadata(self.scene),
             "camera": kb.get_camera_info(self.scene.camera),
             "instances": kb.get_instance_info(self.scene),
-            "has_table": self.add_table,
-            "table_id": self.table_id, 
-            "test_obj_id": self.test_obj_id, 
-            "block_id": self.block_id,
-            "fps": self.flags.frame_rate, 
-            "volation_frame_start_at": self.frame_violation_start, 
-            "test_case": self.violation_type
+            "test_obj": test_obj_names,
+            "dynamic_objs": dynamic_obj_names,
+            "static_objs": static_obj_names,
+            "block_obj": block_obj_name,
+            "table": table_asset_id,
+
         })
 
     def change_output_dir(self, new_output_dir):
@@ -701,7 +723,10 @@ class BaseTestScene(abc.ABC):
 
         """
         for _ in range(n_obj):
-            self.add_object(is_dynamic=False)
+            # self.add_object(is_dynamic=False)
+            obj = self.add_object()
+            self.static_objs.append(obj)
+
             
         logging.info("Running 100 frames of simulation to let static objects settle ...")
         _, _ = self.simulator.run(frame_start=-100, frame_end=0)
