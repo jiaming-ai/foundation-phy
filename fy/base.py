@@ -19,8 +19,8 @@ from bpy import context as C
 
 # --- Some configuration values
 # the region in which to place objects [(min), (max)]
-STATIC_SPAWN_REGION = [(-4, -1, 0), (4, 7, 10)] # for static objects
-DYNAMIC_SPAWN_REGION = [(-5, -5, 1), (5, 5, 5)]
+STATIC_SPAWN_REGION = [(-1, -1, 0), (1, 1, 5)] # for static objects
+DYNAMIC_SPAWN_REGION = [(-1, -1, 1), (1, 1, 5)]
 VELOCITY_RANGE = [(-4., -4., 0.), (4., 4., 0.)]
 
 SCENE_EXCLUDE = ["wobbly_bridge"]
@@ -161,7 +161,7 @@ class BaseTestScene(abc.ABC):
         
         self.object_asset_id_list = self.gso.all_asset_ids
 
-    def _setup_everything(self, shift=[0, 5, 0]):
+    def _setup_everything(self):
 
         if self.flags.scene_type == "indoor":
             use_indoor = True
@@ -173,10 +173,13 @@ class BaseTestScene(abc.ABC):
         
         if use_indoor:
             self._setup_indoor_scene()
+            # indoor scene should not add dynamic objects, because the scene is not in simulation state
+            self.is_add_background_dynamic_objects = False
         else:
             self._setup_hdri_scene()
             self.ref_h = 0
-
+            # for hdri scene
+            self.is_add_background_dynamic_objects = True
 
         self.scene.gravity = self.gravity
 
@@ -433,6 +436,9 @@ class BaseTestScene(abc.ABC):
         print("Setting up the Camera...")
         self._add_camera(scene)
 
+        # default camera lookat for hdri scene
+        self.camera_look_at = [0, 0, 1.2]
+        self.default_camera_pos = [0, -4, 1.5]
         if self.is_add_table: 
             logging.info("Adding table to the scene")
             table_id = rng.choice(self.shapenet_table_ids)
@@ -484,8 +490,8 @@ class BaseTestScene(abc.ABC):
         self.load_blender_scene(blender_scene)
         self._add_camera(self.scene)
 
-        self.scene.camera.position = self.default_camera_pos
-        self.scene.camera.look_at(self.camera_look_at)
+        # self.scene.camera.position = self.default_camera_pos
+        # self.scene.camera.look_at(self.camera_look_at)
 
         # add floor to the scene
         logging.info("Adding floor to the scene")
@@ -500,6 +506,8 @@ class BaseTestScene(abc.ABC):
         bpy.data.objects[self.floor_name].hide_viewport = True
 
 
+        self.default_camera_pos = [0, -1.8, 1]
+        self.camera_look_at = [0, 0, 0.3]
         if self.is_add_table: 
             logging.info("Adding table to the scene")
             table_id = rng.choice(self.shapenet_table_ids)
@@ -612,8 +620,6 @@ class BaseTestScene(abc.ABC):
             kb.move_until_no_overlap(obj, self.simulator, spawn_region=STATIC_SPAWN_REGION,
                                     rng=self.rng)
 
-        # temporarily set false 
-        # to mitigate error "'XXXTestScene' object has no attribute 'gravity'"
         if is_dynamic: 
             # reduce the restitution of the object to make it less bouncy
             # account for the gravity
