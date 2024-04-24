@@ -190,7 +190,7 @@ class BaseTestScene(abc.ABC):
             self.add_block_objects()
 
         self.add_test_objects()
-
+        self.renderer.save_state(f"temp_scene/can_1.blend")
         # self._run_simulate()
         self._random_rotate_scene()
 
@@ -202,7 +202,7 @@ class BaseTestScene(abc.ABC):
         else:
             self.scene.camera.position = self.default_camera_pos
             self.scene.camera.look_at(self.camera_look_at)
-
+        # self.renderer.save_state(f"temp_scene/can_2.blend")
         if not use_indoor:
             # the hdri center texture is wired, shift to avoid
             self.shift_scene([0,5,0])
@@ -210,7 +210,7 @@ class BaseTestScene(abc.ABC):
         if self.render_speedup:
             self._set_fast_rendering()
             
-
+        # self.renderer.save_state(f"temp_scene/can_3.blend")
 
     # def _check_scene_visible(self):
     #     frame_end = self.flags.frame_end
@@ -344,13 +344,16 @@ class BaseTestScene(abc.ABC):
         while True:
             self.dynamic_objs = []
             self.static_objs = []
+            self.test_obj = []
                 
             self._setup_everything()
+            # self.renderer.save_state(f"temp_scene/can_4.blend")
             if self._check_scene():
                 self.generate_keyframes()
+                # self.renderer.save_state(f"temp_scene/can_5.blend")
                 return 
             logging.warning("Current scene is invalid. Regenerating ")
-            # self.renderer.save_state(f"temp_scene/invalid_{self.i}.blend")
+            self.renderer.save_state(f"temp_scene/invalid_{self.i}.blend")
             self.i += 1
             
             if self.is_move_camera:

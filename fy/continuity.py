@@ -32,14 +32,17 @@ class ContinuityTestScene(PermananceTestScene):
         # 1. object disappears
         # 0. object teleports
         self.violation_type = np.random.binomial(n=1,p=0.5)
+        self.is_move_camera = np.random.binomial(n=1,p=0.5)
         self.gravity = (0, 0, -4.9)
 
         if not(self.violation_type):
             self.default_camera_pos = spherical_to_cartesian(r_range=[2, 3], theta_range=[75, 85])
             self.camera_look_at = (0, 0, self.ref_h)
-            self.flags.move_camera = False 
+            # self.flags.is_move_camera = False 
         else:
-            self.flags.move_camera = True
+            # self.flags.is_move_camera = True
+            pass
+
     def prepare_scene(self):
         print("preparing scene ...")
         super().prepare_scene()
@@ -148,13 +151,6 @@ class ContinuityTestScene(PermananceTestScene):
         small_obj.velocity = (vx, 0, 0)
         small_obj.friction = 0.1
 
-
-        # align the can object
-
-        # small_obj.position = (-0.8, 0.15, self.ref_h+0.2)
-        # for _ in range(10):
-        #     print(small_obj.position, self.ref_h, small_obj.aabbox[0][2], self.ref_h - small_obj.aabbox[0][2])
-        #     print(small_obj.aabbox)
         self.test_obj = [small_obj]
         self._run_simulate()
         self.save_non_violation_scene()
@@ -170,7 +166,7 @@ class ContinuityTestScene(PermananceTestScene):
         Args:
             (bool): 
         """
-
+        less_strict = not(self.flags.render_violate_video) 
         # TODO: farthest point sampling, try reduce num of samples
         frame_end = self.flags.frame_end
 
@@ -206,18 +202,20 @@ class ContinuityTestScene(PermananceTestScene):
             #         and visibility_obj[-6] >= 0.15
             cond_2 = is_obj_visible[:6].max() and is_obj_visible[-7:].max()
             cond = [cond_2,
-                    cond_1,
+                    cond_1 or less_strict,
                     in_view[0],
                     in_view[5],
-                    in_view[-12:].max(),
+                    in_view[-12:].max()  or less_strict,
                     is_table_visible[6:-6].min(), 
-                    obj_on_table.sum() >= 16]
+                    obj_on_table.sum() >= 16  or less_strict
+                    ]
         else:
             cond = [visibility_obj[0] >= 0.5,
                     in_view[0],
                     in_view[-5],
                     is_table_visible[6:-6].min(), 
-                    obj_on_table.sum() >= 20]
+                    obj_on_table.sum() >= 20  or less_strict
+                    ]
 
         is_valid = np.min(cond)
         if is_valid:
