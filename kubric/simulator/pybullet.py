@@ -174,45 +174,6 @@ class PyBullet(core.View):
           useFixedBase=obj.static,
           globalScaling=scale,
           useMaximalCoordinates=True)
-      # print(str(path), "02946921" in str(path))
-      if "02946921" in str(path) and False:
-        import numpy as np
-        bbox = self._physics_client.getAABB(obj_idx) # returns [aabbMin, aabbMax]
-        bmin, bmax = np.array(bbox[0]), np.array(bbox[1])
-        x_size, y_size, z_size = bmax - bmin
-        axis_compare = np.array([np.isclose(y_size, z_size), 
-                  np.isclose(z_size, x_size), 
-                  np.isclose(y_size, x_size)])
-        
-        if axis_compare.sum() > 0:
-          axis = np.argmax(np.array(axis_compare))
-          param_dict = {
-            0: (x_size, y_size/2, [0,1,0,0]),  # (height, radius, quaternion)
-            1: (y_size, z_size/2, [1,0,0,0]), 
-            2: (z_size, x_size/2, [0,0,0,1]), 
-          }
-
-          height, radius, q = param_dict[int(axis)]
-          
-          self._physics_client.removeBody(obj_idx)
-
-          col_id = self._physics_client.createCollisionShape(
-            shapeType=self._physics_client.GEOM_CYLINDER,
-            radius=radius, 
-            height=height,
-            collisionFramePosition=[0.0,0,0], 
-            collisionFrameOrientation=q)
-          
-          obj_idx = self._physics_client.createMultiBody(
-                baseMass=0.1,
-                baseCollisionShapeIndex=col_id,
-                baseInertialFramePosition=[0, 0, 0],
-                basePosition=[0, 0, 0], 
-                baseOrientation=[0,0,0,1])
-          self._physics_client.changeDynamics(obj_idx, 0, 
-                                              spinningFriction=1, 
-                                              rollingFriction=1)
-
     else:
       raise IOError(
           "Unsupported format '{path.suffix}' of file '{path}'")
