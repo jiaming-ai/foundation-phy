@@ -336,10 +336,10 @@ class BaseTestScene(abc.ABC):
             if obj.name == self.table_name:
                 obj.rotation_mode = "XYZ"
             else:
-                matrix_world = se3_tf @ obj.matrix_world
-                loc, rot, scale = matrix_world.decompose()
-                obj.position = loc
-                obj.quaternion = rot
+                obj.matrix_world = se3_tf @ obj.matrix_world
+                # loc, rot, scale = matrix_world.decompose()
+                # obj.position = loc
+                # obj.quaternion = rot
                 # quaternion = Rotation.from_matrix(matrix_world[:3,:3]).as_quat()
                 # obj.quaternion =  quaternion
                 # pos_vector = matrix_world[:3,3]
@@ -626,7 +626,7 @@ class BaseTestScene(abc.ABC):
             # account for the gravity
             restituion_scale = -self.gravity[2] / 9.8
             obj.restitution *= restituion_scale
-            obj.friction = 1.0
+            obj.friction = 0.7
         else:
             # make the object static
             obj.friction = 1.0
