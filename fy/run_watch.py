@@ -38,15 +38,16 @@ def run_watch():
         print("Restarting the job with the following arguments:")
         print(" ".join(all_args))
         print("=============================================================")
-        proc = subprocess.Popen(all_args,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        proc = subprocess.Popen(all_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
 
         while True:
             # first check if the job is killed
             if proc.poll() is not None:
                 print("Job is killed. Restarting the job.")
                 break
-            # read the output
-            output = proc.stdout.readline()
+            # read all the output since the last read
+            output = proc.stdout.read(200)
+
             if output == b'' and proc.poll() is not None:
                 break
             if output:

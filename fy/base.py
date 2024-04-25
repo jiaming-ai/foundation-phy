@@ -192,7 +192,7 @@ class BaseTestScene(abc.ABC):
         self.add_test_objects()
 
         # self._run_simulate()
-        self._random_rotate_scene()
+        # self._random_rotate_scene()
 
         if self.is_move_camera:
             traj_idx = random.randint(0, len(self.camera_path_config)-1)
@@ -336,8 +336,15 @@ class BaseTestScene(abc.ABC):
             if obj.name == self.table_name:
                 obj.rotation_mode = "XYZ"
             else:
-                obj.matrix_world = se3_tf @ obj.matrix_world
-
+                matrix_world = se3_tf @ obj.matrix_world
+                loc, rot, scale = matrix_world.decompose()
+                obj.position = loc
+                obj.quaternion = rot
+                # quaternion = Rotation.from_matrix(matrix_world[:3,:3]).as_quat()
+                # obj.quaternion =  quaternion
+                # pos_vector = matrix_world[:3,3]
+                # obj.position = pos_vector
+                
     def prepare_scene(self):
         """Generate a new random test scene"""
         self.i = 0
@@ -427,7 +434,8 @@ class BaseTestScene(abc.ABC):
         texture_node = dome_blender.data.materials[0].node_tree.nodes["Image Texture"]
         texture_node.image = bpy.data.images.load(background_hdri.filename)
 
-        
+        self.set_random_rotation(dome,z_axis=True)
+
         print("Setting up the Camera...")
         self._add_camera(scene)
 
@@ -574,9 +582,9 @@ class BaseTestScene(abc.ABC):
                    **kwargs):
         """Add objects to the scene.
 
-        
         """
         # delete the old object with the same name to avoid clashing
+        kwargs["scale"] = scale
         if 'name' in kwargs:
             self._delete_from_blender_scene(kwargs['name'])
         # delete the object with the same input name
@@ -594,8 +602,6 @@ class BaseTestScene(abc.ABC):
 
 
         obj.velocity = velocity
-        obj.scale = scale
-        obj.metadata["scale"] = scale
 
         if quaternion is not None:
             obj.quaternion = quaternion_tf * quaternion
@@ -800,17 +806,26 @@ class BaseTestScene(abc.ABC):
     ############################
     # helper functions
     ############################
-    def set_random_rotation(self, obj):
+    def set_random_rotation(self, obj, z_axis=False):
         """Set a random rotation for the object.
 
         """
         def mul_2pi(x):
             return x * 2 * np.pi
-        u, v, w = self.rng.uniform(0, 1, 3)
-        obj.quaternion = ( np.sqrt(1-u) * np.sin(mul_2pi(v)), \
-            np.sqrt(1-u) * np.cos(mul_2pi(v)), \
-            np.sqrt(u) *  np.sin(mul_2pi(w)), \
-            np.sqrt(u) * np.cos(mul_2pi(w)) )
+        rng = self.rng or np.random
+
+
+        if not z_axis:
+            u, v, w = rng.uniform(0, 1, 3)
+            obj.quaternion = ( np.sqrt(1-u) * np.sin(mul_2pi(v)), \
+                np.sqrt(1-u) * np.cos(mul_2pi(v)), \
+                np.sqrt(u) *  np.sin(mul_2pi(w)), \
+                np.sqrt(u) * np.cos(mul_2pi(w)) )
+        else:
+            # only rotate around z axis
+            angle = rng.uniform(0, 2*np.pi)
+            obj.quaternion = kb.Quaternion(axis=[0, 0, 1], degrees=angle)
+            
     @staticmethod
     def get_object_state_at_frame(obj, frame):
         """Get the state of the object at a given frame
