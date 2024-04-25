@@ -116,40 +116,43 @@ class ContinuityTestScene(PermananceTestScene):
             _type_: _description_
         """
         # -- add small object
-        print("adding the small object")
+        valid = False
+        while not valid: # only select valid small object
+            print("adding the small object")
 
-        if self.violation_type:
-            # relocate the block obj
-            self.block_obj.position = (0.15, -0.1, self.block_obj.position[2])
-        else:
-            self.block_obj.position = (0, 0, -10)
-        # initialize the obj. Note the the initial position should be (0,0,0) 
-        # so that the dist between its CoM and the table surface can be calculated
-        small_obj_id = [name for name, spec in shapenet_assets._assets.items()
-                if spec["metadata"]["category"] == "can"]
-        small_obj_id = self.rng.choice(small_obj_id)
-        small_obj = self.add_object(asset_id=small_obj_id,
-                                position=(0, 0, 0),
-                                velocity=(0, 0, 0),
-                                quaternion=kb.Quaternion(axis=[0, 0, 1], degrees=0),
-                                is_dynamic=True,
-                                scale=0.15, 
-                                name="small_obj") 
-        
-        self.test_obj_z_orn = align_can_objs(small_obj)
-        
+            if self.violation_type:
+                # relocate the block obj
+                self.block_obj.position = (0.15, -0.1, self.block_obj.position[2])
+            else:
+                self.block_obj.position = (0, 0, -10)
+            # initialize the obj. Note the the initial position should be (0,0,0) 
+            # so that the dist between its CoM and the table surface can be calculated
+            small_obj_id = [name for name, spec in shapenet_assets._assets.items()
+                    if spec["metadata"]["category"] == "can"]
+            small_obj_id = self.rng.choice(small_obj_id)
+            small_obj = self.add_object(asset_id=small_obj_id,
+                                    position=(0, 0, 0),
+                                    velocity=(0, 0, 0),
+                                    quaternion=kb.Quaternion(axis=[0, 0, 1], degrees=0),
+                                    is_dynamic=True,
+                                    scale=0.15, 
+                                    name="small_obj") 
+            
+            self.test_obj_z_orn, radius, _, valid = align_can_objs(small_obj)
+            self.radius = radius
+        # small_obj.quaternion =  kb.Quaternion(axis=[0, 0, 1], degrees=180) * small_obj.quaternion
 
         # set the position of the can to avoid potential collision 
         # of the block object
         table_x_range = self.table.aabbox[0][0]
         block_y_range = self.block_obj.aabbox[1][1]
-        vx = self.rng.uniform(0.8, 1.0) # initial velocitry
+        vx = self.rng.uniform(0.5, 0.8) # initial velocitry
         px = self.rng.uniform(0, 0.05) + small_obj.aabbox[1][2] + table_x_range # initial position
         py = self.rng.uniform(0.1, 0.15) + block_y_range
-        pz = self.rng.uniform(0.0, 0.01) + self.ref_h - small_obj.aabbox[0][2]
+        pz = self.rng.uniform(0.05, 0.1) + self.ref_h + radius
         small_obj.position = (px, py, pz)
         small_obj.velocity = (vx, 0, 0)
-        small_obj.friction = 0.1
+        small_obj.friction = 0
 
         self.test_obj = [small_obj]
         self._run_simulate()
@@ -166,6 +169,7 @@ class ContinuityTestScene(PermananceTestScene):
         Args:
             (bool): 
         """
+        # self.frame_violation_start = 20; return True
         less_strict = not(self.flags.render_violate_video) 
         # TODO: farthest point sampling, try reduce num of samples
         frame_end = self.flags.frame_end
@@ -250,12 +254,22 @@ class ContinuityTestScene(PermananceTestScene):
         # remove the test object's unexpected rotation
         obj_pos0 = obj.keyframes["position"][frame_start].copy()
         for frame in range(frame_start, self.scene.frame_end+1):
+            pos = obj.keyframes["position"][frame].copy()
+
+            rot_angle = (obj_pos0[0] - pos[0]) / self.radius
+            quaternion = kb.Quaternion(axis=[0, 1, 0], degrees=-rot_angle * 180 / np.pi)
+            print(self.radius, (obj_pos0[0] - pos[0]), rot_angle * 180 / np.pi)
+            obj.quaternion = quaternion
+            obj.keyframe_insert("quaternion", frame)
+        return ret
+        for frame in range(frame_start, self.scene.frame_end+1):
             # set xy velocity to 0
             q = obj.keyframes["quaternion"][frame].copy()
             q = np.array(q)
             q[1] = 0
             q[3] = 0
-            obj.quaternion = q
+            q[2] = -q[2]
+            obj.quaternion = q / np.linalg.norm(q)
             obj.keyframe_insert("quaternion", frame)
 
             pos = obj.keyframes["position"][frame].copy()

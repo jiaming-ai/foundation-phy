@@ -88,7 +88,7 @@ def main() -> None:
 
             FLAGS.job_dir = output_dir
             try:
-                generate_test_scene(test_cls, FLAGS, output_dir)
+                generate_test_scene(test_cls, FLAGS, output_dir, n)
                 n += 1
                 if n >= num_per_cls:
                     break
@@ -99,7 +99,11 @@ def main() -> None:
                     raise
                 continue
 
-def generate_test_scene(test_class, FLAGS,output_dir) -> None:
+def generate_test_scene(test_class, FLAGS,output_dir, i) -> None:
+    video_dir = os.path.join(output_dir.rsplit('/', 2)[0], "videos/")
+    if not(os.path.exists(video_dir)):
+        os.makedirs(video_dir)
+    # print(video_dir); return
 
     with test_class(FLAGS) as test_scene:
         # first prepare the scene
@@ -127,7 +131,7 @@ def generate_test_scene(test_class, FLAGS,output_dir) -> None:
             logging.info("Rendering the non-violation video")
             start_time = time.time()
             test_scene.render(save_to_file=True)
-            write_video(output_dir + "non_violation/", output_dir + f"non_violation.mp4")
+            write_video(output_dir + "non_violation/", video_dir + f"non_violation_{i}.mp4")
             logging.info(f"Rendering the non-violation video took {time.time() - start_time} seconds")
 
 if __name__ == "__main__":

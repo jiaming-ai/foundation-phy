@@ -178,6 +178,8 @@ class BaseTestScene(abc.ABC):
 
         self.scene.gravity = self.gravity
 
+        self._random_rotate_scene()
+        
         if self.flags.debug:
             logging.info("Ignore background objects in debugging mode.")
         else:
@@ -192,7 +194,6 @@ class BaseTestScene(abc.ABC):
         self.add_test_objects()
         self.renderer.save_state(f"temp_scene/can_1.blend")
         # self._run_simulate()
-        self._random_rotate_scene()
 
         if self.is_move_camera:
             traj_idx = random.randint(0, len(self.camera_path_config)-1)
@@ -784,7 +785,7 @@ class BaseTestScene(abc.ABC):
                                 position=(0, 0, 0),
                                 quaternion=(1,0,0,0),
                                 is_dynamic=True,
-                                scale=1.25, 
+                                scale=1.25/100, 
                                 name=self.block_name
                                 )
 

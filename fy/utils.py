@@ -389,6 +389,9 @@ def align_can_objs(obj):
      # otherwise set the longest axis as the principal axis
      axis = np.argmax(np.array([x_size, y_size, z_size]))
 
+  radius = [y_size, z_size, x_size][axis] / 2
+  height = [x_size, y_size, z_size][axis]
+
   axis_rot_mapping = {
      0: kb.Quaternion(axis=[0, 0, 1], degrees=-90), 
      1: kb.Quaternion(axis=[1, 0, 0], degrees=0), 
@@ -398,7 +401,11 @@ def align_can_objs(obj):
   quaternion_tf = axis_rot_mapping[axis]
   obj.quaternion = quaternion_tf * obj.quaternion
 
-  return axis
+  x_iccentric =  obj.aabbox[1][0] + obj.aabbox[0][0]
+  y_iccentric = obj.aabbox[1][1] + obj.aabbox[0][1]
+  valid = np.abs(x_iccentric) <= 0.01 and np.abs(x_iccentric) <= 0.01 
+
+  return axis, radius, height, valid
 
   
 
