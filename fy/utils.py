@@ -43,6 +43,7 @@ def get_args():
   parser.add_argument("--generate_violation", type=bool, default=False) # generate violation results
   # parser.add_argument("--render_both_results", type=txt2bool, default=True) # render both violation and non-violation results
 
+  parser.add_argument("--add_back_camera", type=bool, default=True) 
   parser.add_argument("--move_camera", type=bool, default=True) # move camera
   parser.add_argument("--scene_type", type=str, default="indoor") # scene type indoor | hdri | both
   
@@ -227,7 +228,7 @@ def set_name(name):
           obj_bpy.name = name
           break           
 
-def getVisibleVertexFraction(obj_name, rng, sample_num=1000):
+def getVisibleVertexFraction(obj_name, rng, camera_name="camera", sample_num=1000):
     """
     Calculates and returns the fraction of vertices of a given object that are visible from a given camera position.
 
@@ -243,7 +244,7 @@ def getVisibleVertexFraction(obj_name, rng, sample_num=1000):
     Returns:
     - float: The fraction of vertices of the object that are visible from the camera position.
     """
-    camera = bpy.data.objects['camera']
+    camera = bpy.data.objects[camera_name]
     obj = bpy.data.objects[obj_name]
     
     camera_loc = [camera.matrix_world[0][3], camera.matrix_world[1][3], camera.matrix_world[2][3]]
@@ -254,6 +255,7 @@ def getVisibleVertexFraction(obj_name, rng, sample_num=1000):
     num_vert_in_fov = 0 # number of vertices in the camera's field of view
 
     vert_list = list(obj.data.vertices)
+    
     sampled_verts = sample(vert_list, sample_num) if sample_num < len(vert_list) else vert_list
     sample_num = len(sampled_verts)
     for vert in sampled_verts:
@@ -268,7 +270,7 @@ def getVisibleVertexFraction(obj_name, rng, sample_num=1000):
 
     return num_vert_in_fov / sample_num
 
-def isPointVisible(pt, obj_names):
+def isPointVisible(pt, obj_names, camera_name="camera"):
     """
     Calculates and returns the fraction of vertices of a given object that are visible from a given camera position.
 
@@ -284,7 +286,7 @@ def isPointVisible(pt, obj_names):
     Returns:
     - float: The fraction of vertices of the object that are visible from the camera position.
     """
-    camera = bpy.data.objects['camera']
+    camera = bpy.data.objects[camera_name]
     camera_loc = [camera.matrix_world[0][3], camera.matrix_world[1][3], camera.matrix_world[2][3]]
     
     dist = np.array(pt) - np.array(camera_loc)
@@ -429,9 +431,9 @@ def align_can_objs(obj):
 def spherical_to_cartesian(r_range=[3, 4], theta_range=[60, 80], phi_range=[-30, 30]):
     r = np.random.uniform(r_range[0], r_range[1])
     theta = np.random.uniform(theta_range[0], theta_range[1]) * np.pi/180
-    phi = np.random.uniform(np.random.uniform(phi_range[0], phi_range[1])) * np.pi/180
-    phi -= np.pi / 2
+    phi = np.random.uniform(phi_range[0], phi_range[1]) * np.pi/180
 
+    phi -= np.pi / 2
     x = r * np.sin(theta) * np.cos(phi)
     y = r * np.sin(theta) * np.sin(phi)
     z = r * np.cos(theta)

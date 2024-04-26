@@ -14,7 +14,7 @@ from utils import align_can_objs, spherical_to_cartesian
 # TODO: test if obj is on the table at most of time; why velocity changes after teletransportation
 
 
-class ContinuityTestScene(PermananceTestScene):
+class ContinuityTestScene(BaseTestScene):
     """Test scene for permanance violation.
     Start: Object is visible
     Normal result: ...
@@ -25,7 +25,6 @@ class ContinuityTestScene(PermananceTestScene):
     """
     
     def __init__(self, FLAGS) -> None:
-
         super().__init__(FLAGS)
         self.frame_violation_start = -1
         # two cases:
@@ -35,13 +34,19 @@ class ContinuityTestScene(PermananceTestScene):
         self.is_move_camera = np.random.binomial(n=1,p=0.5)
         self.gravity = (0, 0, -4.9)
 
-        if not(self.violation_type):
-            self.default_camera_pos = spherical_to_cartesian(r_range=[2, 3], theta_range=[75, 85])
-            self.camera_look_at = (0, 0, self.ref_h)
-            # self.flags.is_move_camera = False 
-        else:
-            # self.flags.is_move_camera = True
-            pass
+        self.back_camera_pos = spherical_to_cartesian(r_range=[2.25, 2.75], theta_range=[70, 80], phi_range=[-45+180, 45+180])
+        self.default_camera_pos = spherical_to_cartesian(r_range=[2.25, 2.75], theta_range=[75, 85])
+        self.camera_look_at = (0, 0, self.ref_h)
+
+        # if not(self.violation_type):
+        #     self.default_camera_pos = spherical_to_cartesian(r_range=[2, 3], theta_range=[75, 85])
+        #     self.camera_look_at = (0, 0, self.ref_h)
+        #     # self.flags.is_move_camera = False 
+        # else:
+        #     # self.flags.is_move_camera = True
+        #     pass
+
+        
 
     def prepare_scene(self):
         print("preparing scene ...")
@@ -50,7 +55,6 @@ class ContinuityTestScene(PermananceTestScene):
         if not(self.violation_type):
             # remove block object
             self.block_obj.position = (0, 0, -10)
-
 
     def generate_keyframes(self):
         """Generate keyframes for the test objects, for both violation and non-violation states
@@ -117,8 +121,11 @@ class ContinuityTestScene(PermananceTestScene):
         """
         # -- add small object
         valid = False
+        small_obj = None
         while not valid: # only select valid small object
             print("adding the small object")
+            if small_obj is not None:
+                self.scene.remove(small_obj)
 
             if self.violation_type:
                 # relocate the block obj
@@ -146,7 +153,7 @@ class ContinuityTestScene(PermananceTestScene):
         # of the block object
         table_x_range = self.table.aabbox[0][0]
         block_y_range = self.block_obj.aabbox[1][1]
-        vx = self.rng.uniform(0.5, 0.8) # initial velocitry
+        vx = self.rng.uniform(0.35, 0.8) # initial velocitry
         px = self.rng.uniform(0, 0.05) + small_obj.aabbox[1][2] + table_x_range # initial position
         py = self.rng.uniform(0.1, 0.15) + block_y_range
         pz = self.rng.uniform(0.05, 0.1) + self.ref_h + radius
@@ -185,8 +192,8 @@ class ContinuityTestScene(PermananceTestScene):
         obj = self.test_obj[0] # work for only one test obj
         for i, frame in enumerate(tqdm(range(self.flags.frame_start, self.flags.frame_end))):
             bpy.context.scene.frame_set(frame)
-            vis_obj = getVisibleVertexFraction("small_obj", self.rng)
-            vis_table = isPointVisible([0, 0, self.ref_h], [self.table_name, self.block_name, "small_obj"])
+            vis_obj = getVisibleVertexFraction("small_obj", self.rng, self.active_camera)
+            vis_table = isPointVisible([0, 0, self.ref_h], [self.table_name, self.block_name, "small_obj"], self.active_camera)
             visibility_obj[i] = vis_obj  
             visibility_table[i] = vis_table
             obj_on_table[i] = obj.keyframes["position"][frame][2] > self.ref_h-0.05
@@ -216,7 +223,7 @@ class ContinuityTestScene(PermananceTestScene):
         else:
             cond = [visibility_obj[0] >= 0.5,
                     in_view[0],
-                    in_view[-5],
+                    in_view[-5]  or less_strict,
                     is_table_visible[6:-6].min(), 
                     obj_on_table.sum() >= 20  or less_strict
                     ]
@@ -258,7 +265,7 @@ class ContinuityTestScene(PermananceTestScene):
 
             rot_angle = (obj_pos0[0] - pos[0]) / self.radius
             quaternion = kb.Quaternion(axis=[0, 1, 0], degrees=-rot_angle * 180 / np.pi)
-            print(self.radius, (obj_pos0[0] - pos[0]), rot_angle * 180 / np.pi)
+            # print(self.radius, (obj_pos0[0] - pos[0]), rot_angle * 180 / np.pi)
             obj.quaternion = quaternion
             obj.keyframe_insert("quaternion", frame)
         return ret

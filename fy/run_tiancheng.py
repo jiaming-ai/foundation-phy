@@ -112,27 +112,36 @@ def generate_test_scene(test_class, FLAGS,output_dir, i) -> None:
         test_scene.write_metadata()
 
         # render the violation state
-        test_scene.change_output_dir( output_dir + "violation" )
+        
 
-        if FLAGS.render_violate_video:
-            logging.info("Rendering the violation video")
-            start_time = time.time()
-            test_scene.render(save_to_file=True)
-            # write_video(output_dir + "violation/", output_dir + "violation.mp4")
-            logging.info(f"Rendering the violation video took {time.time() - start_time} seconds")
+        cameras = [test_scene.camera_name]
+        if FLAGS.add_back_camera:
+            cameras += [test_scene.back_camera_name]
+        camera_names = ["front", "back"]
+        for j, camera in enumerate(cameras):
+            test_scene._switch_camera(camera)
+            camera_name = camera_names[j] 
+            
+            test_scene.change_output_dir( output_dir + f"violation_{camera_name}" )
+            if FLAGS.render_violate_video:
+                logging.info("Rendering the violation video")
+                start_time = time.time()
+                test_scene.render(save_to_file=True)
+                write_video(output_dir + f"violation_{camera_name}/", output_dir + f"violation_{i}_{camera_name}.mp4")
+                logging.info(f"Rendering the violation video took {time.time() - start_time} seconds")
 
-        # load the non-violation state and render it
-        logging.info("Loading the non-violation state")
-        test_scene.load_non_violation_scene()
-        test_scene.change_output_dir( output_dir + "non_violation" )
+            # load the non-violation state and render it
+            logging.info("Loading the non-violation state")
+            test_scene.load_non_violation_scene()
+            test_scene.change_output_dir( output_dir + f"non_violation_{camera_name}" )
 
-        # igore rendering if debug is on
-        if FLAGS.render_non_violate_video:
-            logging.info("Rendering the non-violation video")
-            start_time = time.time()
-            test_scene.render(save_to_file=True)
-            write_video(output_dir + "non_violation/", video_dir + f"non_violation_{i}.mp4")
-            logging.info(f"Rendering the non-violation video took {time.time() - start_time} seconds")
+            # igore rendering if debug is on
+            if FLAGS.render_non_violate_video:
+                logging.info("Rendering the non-violation video")
+                start_time = time.time()
+                test_scene.render(save_to_file=True)
+                write_video(output_dir + f"non_violation_{camera_name}/", video_dir + f"non_violation_{i}_{camera_name}.mp4")
+                logging.info(f"Rendering the non-violation video took {time.time() - start_time} seconds")
 
 if __name__ == "__main__":
     main()
