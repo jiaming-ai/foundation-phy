@@ -190,7 +190,7 @@ class ContinuityTestScene(BaseTestScene):
         # Check visibility of the test obj at each frame
         print("Checking scene...")
         obj = self.test_obj[0] # work for only one test obj
-        for i, frame in enumerate(tqdm(range(self.flags.frame_start, self.flags.frame_end))):
+        for i, frame in enumerate((range(self.flags.frame_start, self.flags.frame_end))):
             bpy.context.scene.frame_set(frame)
             vis_obj = getVisibleVertexFraction("small_obj", self.rng, self.active_camera)
             vis_table = isPointVisible([0, 0, self.ref_h], [self.table_name, self.block_name, "small_obj"], self.active_camera)

@@ -300,7 +300,8 @@ def isPointVisible(pt, obj_names, camera_name="camera"):
     
     outcome = (target.name in obj_names)
     if not(outcome):
-      logging.warning(f"The object {obj_names} is blocked in at least one frame, {target.name} detected instead")
+       pass
+      # logging.warning(f"The object {obj_names} is blocked in at least one frame, {target.name} detected instead")
     return outcome
 
 

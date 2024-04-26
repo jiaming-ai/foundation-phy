@@ -51,7 +51,7 @@ def run_watch():
             if output == b'' and proc.poll() is not None:
                 break
             if output:
-                print(output.strip().decode())
+                print(output.strip().decode("utf-8", 'ignore'))
             # print("Still runing...")
             # wait for 1 second
             time.sleep(1)
