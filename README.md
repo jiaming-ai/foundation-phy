@@ -24,6 +24,14 @@ docker run --rm -it \
 
 ```
 
+
+### Run render with kill auto restart
+```
+# training, hdri scene
+python fy/run_watch.py --render_multiview --render_non_violate_video --num_per_cls 5000 --test_scene_cls collision_free_fall --scene_type hdri
+```
+
+
 For testing
 ```
 python fy/run_tiancheng.py --save_states True --debug True
