@@ -76,15 +76,9 @@ class BaseTestScene(abc.ABC):
         self.table_scale = 2
         self.shapenet_table_ids = None
 
-        self.camera_front = None
-        self.camera_back = None
-        self.active_camera = None
-
         self.floor_name = "floor_kb"
         self.table_name = "table_kb"
         self.block_name = "block_kb"
-        self.camera_name = "camera"
-        self.back_camera_name = "camera_back"
 
         self.render_data = ("rgba",)
         self.background_hdri_id = FLAGS.background_hdri_id
@@ -94,7 +88,6 @@ class BaseTestScene(abc.ABC):
         self.test_obj_states = {"violation": None, "non_violation": None}
         self.test_obj = None
         self.default_camera_pos = [0, 0, 1]
-        self.back_camera_pos = [0, 0, 1]
         self.camera_look_at = [0,0,0]
 
         # load asset sources
@@ -187,8 +180,7 @@ class BaseTestScene(abc.ABC):
             self.is_add_background_dynamic_objects = True
 
         self.scene.gravity = self.gravity
-        self._random_rotate_scene()
-        
+
         if self.flags.debug:
             logging.info("Ignore background objects in debugging mode.")
         else:
@@ -201,24 +193,19 @@ class BaseTestScene(abc.ABC):
             self.add_block_objects()
 
         self.add_test_objects()
-        self.renderer.save_state(f"temp_scene/can_1.blend")
+
         # self._run_simulate()
         # self._random_rotate_scene()
 
-        # self._switch_to_back_camera()
-        # self.scene.camera.position = self.back_camera_pos
-        # self.scene.camera.look_at(self.camera_look_at)
-
-        self._switch_to_front_camera()
         if self.is_move_camera:
             traj_idx = random.randint(0, len(self.camera_path_config)-1)
             self._set_camera_path(self.camera_path_config[traj_idx])
             self.cur_camera_traj_idx = traj_idx
             self._set_camera_focus_point([0, 0, self.ref_h]) # auto set the height to be the table height if exists
         else:
-            self.camera_front.position = self.default_camera_pos
-            self.camera_front.look_at(self.camera_look_at)
-        # self.renderer.save_state(f"temp_scene/can_2.blend")
+            self.scene.camera.position = self.default_camera_pos
+            self.scene.camera.look_at(self.camera_look_at)
+
         if not use_indoor:
             # the hdri center texture is wired, shift to avoid
             self.shift_scene([0,5,0])
@@ -226,7 +213,7 @@ class BaseTestScene(abc.ABC):
         if self.render_speedup:
             self._set_fast_rendering()
             
-        # self.renderer.save_state(f"temp_scene/can_3.blend")
+
 
     # def _check_scene_visible(self):
     #     frame_end = self.flags.frame_end
@@ -262,6 +249,8 @@ class BaseTestScene(abc.ABC):
         key_frame_val = path_config["key_frame_val"]
         
         camera = bpy.data.objects['camera']
+        
+
         bpy.ops.curve.primitive_bezier_circle_add(enter_editmode=False, 
                                                 align='WORLD', 
                                                 location=center, 
@@ -306,6 +295,7 @@ class BaseTestScene(abc.ABC):
                     keyframe.interpolation = 'CUBIC'
                     keyframe.easing='EASE_IN_OUT'
 
+        camera.location = [0,0,0]
         return path_con
     
     def _set_camera_focus_point(self, look_at=[0,0,0]):
@@ -367,13 +357,10 @@ class BaseTestScene(abc.ABC):
         while True:
             self.dynamic_objs = []
             self.static_objs = []
-            self.test_obj = []
                 
             self._setup_everything()
-            # self.renderer.save_state(f"temp_scene/can_4.blend")
-            if self._check_scene_with_front_back_cameras():
+            if self._check_scene_with_all_cameras():
                 self.generate_keyframes()
-                # self.renderer.save_state(f"temp_scene/can_5.blend")
                 return 
             logging.warning("Current scene is invalid. Regenerating ")
             self.renderer.save_state(f"temp_scene/invalid_{self.i}.blend")
@@ -383,40 +370,60 @@ class BaseTestScene(abc.ABC):
                 self.camera_path_sample_stats[self.cur_camera_traj_idx] += 1
                 logging.info(f"Re-sampling... Current stats: {self.camera_path_sample_stats}")
 
-    def _check_scene_with_front_back_cameras(self):
-        """Check if the scene is valid for both the front and back camera. Return Flase if the scene is invalid.
-        TODO: implement (Override) this function
+    def _check_scene_with_all_cameras(self):
+            """Check if the scene is valid for all the cameras. Return Flase if the scene is invalid.
+            TODO: implement (Override) this function
 
-        Returns:
-            _type_: _description_
-        """
-        self._switch_to_front_camera()
-        if not self._check_scene():
-            logging.warning("Check scene failed with Front Camera")
-            return False
-        
-        if not self.flags.add_back_camera:
-            return True
-        
-        self._switch_to_back_camera()
-        if self._check_scene():
-            self._switch_to_front_camera()
-            return True
-        else:
-            logging.warning("Check scene failed with Back Camera")
-            return False
+            Returns:
+                _type_: _description_
+            """
+            # self.scene.camera.position = self.default_camera_pos
+            # self.scene.camera.look_at(self.camera_look_at)
+            print("checking camera view 1")
+            self._switch_to_view1()
+            if not (self._check_scene()):
+                logging.warning("Check scene failed with Camera View 1")
+                return False
+            
+            if not self.flags.render_multiview:
+                return True
+            
+            print("checking camera view 2")
+            self._switch_to_view2()
+            if self._check_scene():
+                # change back to the front camera
+                self._switch_to_view1()
+                return True
+            else:
+                logging.warning("Check scene failed with Camera View 2")
+                return False
 
+    def _switch_to_view1(self):
+        cam = bpy.data.objects["camera"]
+        self.scene.camera.position = [0,0,0]
+        self.scene.camera.rotation_quaternion = [1,0,0,0]
+
+        for c in cam.constraints:
+            c.mute = False
+
+
+    def _switch_to_view2(self):
+        cam = bpy.data.objects["camera"]
+        for c in cam.constraints:
+            c.mute = True
+
+        self.scene.camera.position = self.alternative_camera_pos
+        self.scene.camera.look_at(self.alternative_camera_look_at)
     
     def _check_scene(self):
-        """Check if the scene is valid. Return Flase if the scene is invalid.
-        TODO: implement (Override) this function
+            """Check if the scene is valid Return Flase if the scene is invalid.
+            TODO: implement (Override) this function
 
-        Returns:
-            _type_: _description_
-        """
-        return True
-        # return self._check_scene_visible()
-        
+            Returns:
+                _type_: _description_
+            """
+            
+            return True
     
     def __enter__(self):
         return self
@@ -526,34 +533,12 @@ class BaseTestScene(abc.ABC):
         self.scratch_dir = scratch_dir
         self.background_hdri = background_hdri
 
-    def _add_camera(self, scene, back_cam=False):
-        cam_name = self.camera_name if not back_cam else self.back_camera_name
-
-        camera = kb.PerspectiveCamera(name=cam_name)
-        self.scene += camera 
-        self.scene.camera = camera
+    def _add_camera(self, scene):
+        scene.camera = kb.PerspectiveCamera(name="camera")
 
         # avoid name clash
+        cam_name = "camera"
         set_name(cam_name)
-
-        if not back_cam:
-            self.camera_front = camera 
-        else:
-            self.camera_back = camera
-            # self.scene.camera.position = self.back_camera_pos 
-            # self.scene.camera.look_at(self.camera_look_at)
-
-    def _switch_to_front_camera(self):
-        self._switch_camera(self.camera_name)
-        self.scene.camera = self.camera_front
-
-    def _switch_to_back_camera(self):
-        self._switch_camera(self.back_camera_name)
-        self.scene.camera = self.camera_back
-
-    def _switch_camera(self, camera_name):
-        bpy.context.scene.camera = bpy.data.objects[camera_name]
-        self.active_camera = camera_name
 
     def _setup_indoor_scene(self, 
                             ):
@@ -566,8 +551,8 @@ class BaseTestScene(abc.ABC):
         logging.info("Loading blender scene")
         blender_scene = rng.choice(self.scenes)
         self.load_blender_scene(blender_scene)
+        self._add_camera(self.scene)
 
-        
         # self.scene.camera.position = self.default_camera_pos
         # self.scene.camera.look_at(self.camera_look_at)
 
@@ -584,8 +569,8 @@ class BaseTestScene(abc.ABC):
         bpy.data.objects[self.floor_name].hide_viewport = True
 
 
-        # self.default_camera_pos = [0, -1.8, 1]
-        # self.camera_look_at = [0, 0, 0.3]
+        self.default_camera_pos = [0, -1.8, 1]
+        self.camera_look_at = [0, 0, 0.3]
         if self.is_add_table: 
             logging.info("Adding table to the scene")
             table_id = rng.choice(self.shapenet_table_ids)
@@ -602,27 +587,15 @@ class BaseTestScene(abc.ABC):
             set_name(self.table_name)
             self.ref_h = table_h
             self.default_camera_pos[2] += table_h
-            self.back_camera_pos[2] += table_h
+            self.alternative_camera_pos[2] += table_h
             self.table_id = table_id
             # print(self.table_id)
             self.camera_look_at = [0, 0, self.ref_h]
+            self.alternative_camera_look_at = [0, 0, self.ref_h]
        
         self.rng = rng
         self.output_dir = output_dir
         self.scratch_dir = scratch_dir
-
-        if self.flags.add_back_camera:
-            self._add_camera(self.scene, back_cam=True)
-            self._switch_to_back_camera()
-            self.camera_back.position = self.back_camera_pos
-            self.camera_back.look_at(self.camera_look_at)
-        self.renderer.save_state(f"temp_scene/bgcam0.blend")
-
-        self._add_camera(self.scene)
-        self._switch_to_front_camera()
-        self.camera_front.position = self.default_camera_pos
-        self.camera_front.look_at(self.camera_look_at)
-        self.renderer.save_state(f"temp_scene/bgcam1.blend")
 
         ################################
         # add random directional lighting
@@ -651,7 +624,7 @@ class BaseTestScene(abc.ABC):
 
         direc_light = bpy.data.objects["direc_light"]
         direc_light.data.shadow_soft_size = self.rng.uniform(*shadow_soft_size)
-        
+
 
     def shift_scene(self, shift: np.ndarray):
         """Shift the scene by a given vector.
@@ -670,7 +643,6 @@ class BaseTestScene(abc.ABC):
                    scale=2, 
                    **kwargs):
         """Add objects to the scene.
-
 
         """
         # delete the old object with the same name to avoid clashing
@@ -879,7 +851,7 @@ class BaseTestScene(abc.ABC):
                                 position=(0, 0, 0),
                                 quaternion=(1,0,0,0),
                                 is_dynamic=True,
-                                scale=1.25/100, 
+                                scale=1.25, 
                                 name=self.block_name
                                 )
 
@@ -1016,8 +988,9 @@ class BaseTestScene(abc.ABC):
             _type_: _description_
         """
         self.load_non_violation_scene() # only used for non-violation scene
-        self.scene.camera.position = self.alternative_camera_pos
-        self.scene.camera.look_at(self.alternative_camera_look_at)
+        # self.scene.camera.position = self.alternative_camera_pos
+        # self.scene.camera.look_at(self.alternative_camera_look_at)
+        self._switch_to_view2()
         data_stack = self.renderer.render(return_layers=self.render_data)
         if save_to_file:
             kb.write_image_dict(data_stack, self.output_dir, **kwargs)
