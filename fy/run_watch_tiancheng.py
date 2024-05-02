@@ -33,7 +33,7 @@ def run_watch():
         #     print("Job finished.")
         #     break
 
-        all_args = ["/bin/python", "fy/run_tiancheng.py", "--render_non_violate_video", "--test_scene_cls", "1000"] + other_args
+        all_args = ["/bin/python", "fy/run_tiancheng.py", "--render_non_violate_video", "--render_multiview", "--test_scene_cls", "1000"] + other_args
         print("=============================================================")
         print("Restarting the job with the following arguments:")
         print(" ".join(all_args))
