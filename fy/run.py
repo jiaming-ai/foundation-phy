@@ -86,12 +86,20 @@ def generate_test_scene(test_class, FLAGS,output_dir) -> None:
 
         if FLAGS.render_non_violate_video:
             # test_scene.load_non_violation_scene()
-            test_scene.change_output_dir( output_dir + "non_violation" )
+            test_scene.change_output_dir( output_dir + "non_violation_view_1" )
             logging.info("Rendering the non-violation video")
             start_time = time.time()
             test_scene.render(save_to_file=True)
             # write_video(output_dir + "non_violation/", output_dir + "non_violation.mp4")
             logging.info(f"Rendering the non-violation video took {time.time() - start_time} seconds")
+
+            if FLAGS.render_multiview and test_scene.alternative_camera_pos:
+                logging.info("Rendering the non-violation video with alternative camera positions")
+                test_scene.change_output_dir( output_dir + "non_violation_view_2" )
+                start_time = time.time()
+                test_scene.render_alternative_view(save_to_file=True)
+                # write_video(output_dir + "non_violation_multiview/", output_dir + "non_violation_multiview.mp4")
+                logging.info(f"Rendering the non-violation video with alternative camera positions took {time.time() - start_time} seconds")
 
         if FLAGS.render_violate_video:
             # render the violation state

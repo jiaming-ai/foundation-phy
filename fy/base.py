@@ -153,6 +153,9 @@ class BaseTestScene(abc.ABC):
         self.table_id = None
         self.is_add_background_static_objects = True
         self.is_add_background_dynamic_objects = True
+        # used to render views from different angles
+        self.alternative_camera_pos = None
+        self.alternative_camera_look_at = None
         
         self.object_asset_id_list = self.gso.all_asset_ids
 
@@ -442,6 +445,16 @@ class BaseTestScene(abc.ABC):
         # default camera lookat for hdri scene
         self.camera_look_at = [0, 0, 1.2]
         self.default_camera_pos = [0, -4, 1.5]
+
+        # self.alternative_camera_look_at = [0, 0, 0.5]
+        # self.alternative_camera_pos = [0, -4, 1.5]
+        # define a alternative camera position by sampling a location from a circle
+        # with radius 4 and height 1.5
+        theta = rng.uniform(0, 2*np.pi)
+        x, y = 4 * np.cos(theta), 4 * np.sin(theta)
+        self.alternative_camera_pos = [x, y, 1.7]
+        self.alternative_camera_look_at = [x/8, y/8+5, 1.3] # look at the shift point
+        
         if self.is_add_table: 
             logging.info("Adding table to the scene")
             table_id = rng.choice(self.shapenet_table_ids)
@@ -704,6 +717,8 @@ class BaseTestScene(abc.ABC):
             "static_objs": static_obj_names,
             "block_obj": block_obj_name,
             "table": table_asset_id,
+            "alternative_camera_pos": self.alternative_camera_pos, # view2
+            "alternative_camera_look_at": self.alternative_camera_look_at, #view2
 
         })
 
@@ -913,6 +928,23 @@ class BaseTestScene(abc.ABC):
         for i, obj in enumerate(self.test_obj):
             self.set_object_keyframes(obj, self.test_obj_states["non_violation"][i])
         
+    
+    def render_alternative_view(self, save_to_file=False, **kwargs):
+        """Render the scene from an alternative camera view
+
+        Args:
+            save_to_file (bool, optional): _description_. Defaults to False.
+
+        Returns:
+            _type_: _description_
+        """
+        self.load_non_violation_scene() # only used for non-violation scene
+        self.scene.camera.position = self.alternative_camera_pos
+        self.scene.camera.look_at(self.alternative_camera_look_at)
+        data_stack = self.renderer.render(return_layers=self.render_data)
+        if save_to_file:
+            kb.write_image_dict(data_stack, self.output_dir, **kwargs)
+        return data_stack
 
     def _set_fast_rendering(self):
         # adaptive sampling

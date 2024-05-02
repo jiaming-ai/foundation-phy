@@ -6,7 +6,10 @@ import time
 def check_if_job_finished(num_per_cls: int, test_scene_cls) -> bool:
     # check if output/{test_scene} has {num_per_cls} folders
     for test_scene in test_scene_cls:
-        scene_output_dir = f"output/{test_scene}/"
+        scene_output_dir = f"output/{test_scene}"
+        # print(scene_output_dir)
+        # print(os.getcwd())
+        # print(os.path.exists('output'))
         if os.path.exists(scene_output_dir):
             n = len(os.listdir(scene_output_dir))
             if n >= num_per_cls:
