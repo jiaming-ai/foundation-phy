@@ -42,3 +42,20 @@ python fy/run_tiancheng.py --save_states True --debug True
 python fy/run_tiancheng.py --save_states False --debug False
 
 ```
+
+```
+python fy/run_tiancheng.py --save_states --debug  --render_non_violate_video --test_scene_cls 100
+
+```
+
+```
+python fy/run_tiancheng.py  --render_non_violate_video --test_scene_cls 100
+```
+
+```
+python fy/run_tiancheng.py  --debug --save_states --test_scene_cls 100
+```
+run with watch
+```
+python fy/run_watch_tiancheng.py 
+```

@@ -249,6 +249,8 @@ class BaseTestScene(abc.ABC):
         key_frame_val = path_config["key_frame_val"]
         
         camera = bpy.data.objects['camera']
+        
+
         bpy.ops.curve.primitive_bezier_circle_add(enter_editmode=False, 
                                                 align='WORLD', 
                                                 location=center, 
@@ -293,6 +295,7 @@ class BaseTestScene(abc.ABC):
                     keyframe.interpolation = 'CUBIC'
                     keyframe.easing='EASE_IN_OUT'
 
+        camera.location = [0,0,0]
         return path_con
     
     def _set_camera_focus_point(self, look_at=[0,0,0]):
@@ -356,27 +359,77 @@ class BaseTestScene(abc.ABC):
             self.static_objs = []
                 
             self._setup_everything()
-            if self._check_scene():
+            if self._check_scene_with_all_cameras():
                 self.generate_keyframes()
                 return 
             logging.warning("Current scene is invalid. Regenerating ")
-            # self.renderer.save_state(f"temp_scene/invalid_{self.i}.blend")
+            self.renderer.save_state(f"temp_scene/invalid_{self.i}.blend")
             self.i += 1
             
             if self.is_move_camera:
                 self.camera_path_sample_stats[self.cur_camera_traj_idx] += 1
                 logging.info(f"Re-sampling... Current stats: {self.camera_path_sample_stats}")
 
-    def _check_scene(self):
-        """Check if the scene is valid. Return Flase if the scene is invalid.
-        TODO: implement (Override) this function
+    def _check_scene_with_all_cameras(self):
+            """Check if the scene is valid for all the cameras. Return Flase if the scene is invalid.
+            TODO: implement (Override) this function
 
-        Returns:
-            _type_: _description_
-        """
-        return True
-        # return self._check_scene_visible()
-        
+            Returns:
+                _type_: _description_
+            """
+            # self.scene.camera.position = self.default_camera_pos
+            # self.scene.camera.look_at(self.camera_look_at)
+            print("checking camera view 1")
+            self._switch_to_view1()
+            if not (self._check_scene()):
+                logging.warning("Check scene failed with Camera View 1")
+                return False
+            
+            if not self.flags.render_multiview:
+                return True
+            
+            print("checking camera view 2")
+            self._switch_to_view2()
+            if self._check_scene():
+                # change back to the front camera
+                self._switch_to_view1()
+                return True
+            else:
+                logging.warning("Check scene failed with Camera View 2")
+                return False
+
+    def _switch_to_view1(self):
+        cam = bpy.data.objects["camera"]
+
+        if self.is_move_camera:
+            self.scene.camera.position = [0,0,0]
+            self.scene.camera.rotation_quaternion = [1,0,0,0]
+        else:
+            self.scene.camera.position = self.default_camera_pos
+            self.scene.camera.look_at(self.camera_look_at)
+            
+
+        for c in cam.constraints:
+            c.mute = False
+
+
+    def _switch_to_view2(self):
+        cam = bpy.data.objects["camera"]
+        for c in cam.constraints:
+            c.mute = True
+
+        self.scene.camera.position = self.alternative_camera_pos
+        self.scene.camera.look_at(self.alternative_camera_look_at)
+    
+    def _check_scene(self):
+            """Check if the scene is valid Return Flase if the scene is invalid.
+            TODO: implement (Override) this function
+
+            Returns:
+                _type_: _description_
+            """
+            
+            return True
     
     def __enter__(self):
         return self
@@ -540,9 +593,11 @@ class BaseTestScene(abc.ABC):
             set_name(self.table_name)
             self.ref_h = table_h
             self.default_camera_pos[2] += table_h
+            self.alternative_camera_pos[2] += table_h
             self.table_id = table_id
             # print(self.table_id)
             self.camera_look_at = [0, 0, self.ref_h]
+            self.alternative_camera_look_at = [0, 0, self.ref_h]
        
         self.rng = rng
         self.output_dir = output_dir
@@ -939,8 +994,9 @@ class BaseTestScene(abc.ABC):
             _type_: _description_
         """
         self.load_non_violation_scene() # only used for non-violation scene
-        self.scene.camera.position = self.alternative_camera_pos
-        self.scene.camera.look_at(self.alternative_camera_look_at)
+        # self.scene.camera.position = self.alternative_camera_pos
+        # self.scene.camera.look_at(self.alternative_camera_look_at)
+        self._switch_to_view2()
         data_stack = self.renderer.render(return_layers=self.render_data)
         if save_to_file:
             kb.write_image_dict(data_stack, self.output_dir, **kwargs)
