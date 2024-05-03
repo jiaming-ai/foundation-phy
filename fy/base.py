@@ -400,8 +400,14 @@ class BaseTestScene(abc.ABC):
 
     def _switch_to_view1(self):
         cam = bpy.data.objects["camera"]
-        self.scene.camera.position = [0,0,0]
-        self.scene.camera.rotation_quaternion = [1,0,0,0]
+
+        if self.is_move_camera:
+            self.scene.camera.position = [0,0,0]
+            self.scene.camera.rotation_quaternion = [1,0,0,0]
+        else:
+            self.scene.camera.position = self.default_camera_pos
+            self.scene.camera.look_at(self.camera_look_at)
+            
 
         for c in cam.constraints:
             c.mute = False

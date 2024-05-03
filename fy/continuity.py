@@ -42,8 +42,8 @@ class ContinuityTestScene(BaseTestScene):
         self.is_move_camera = np.random.binomial(n=1,p=0.5)
         self.gravity = (0, 0, -4.9)
 
-        self.back_camera_pos = spherical_to_cartesian(r_range=[2.25, 2.75], theta_range=[70, 80], phi_range=[-45+180, 45+180])
-        self.alternative_camera_pos = spherical_to_cartesian(r_range=[2.25, 2.75], theta_range=[75, 85])
+        # self.back_camera_pos = spherical_to_cartesian(r_range=[2.25, 2.75], theta_range=[70, 80], phi_range=[-45+180, 45+180])
+        self.alternative_camera_pos = spherical_to_cartesian(r_range=[1.5, 2.25], theta_range=[70, 80], phi_range=[-45+180, 45+180])
         
 
         # if not(self.violation_type):

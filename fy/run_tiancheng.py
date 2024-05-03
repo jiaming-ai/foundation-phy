@@ -95,7 +95,7 @@ def main() -> None:
             except Exception as e:
                 logging.error(f"Error rendering {test_name} test {n}: {e}\n Skipping to the next one.")
                 # if debug is on, raise the exception
-                if FLAGS.debug:
+                if FLAGS.debug or True:
                     raise
                 continue
 
